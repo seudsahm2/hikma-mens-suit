@@ -9,11 +9,10 @@ import { useT } from '../lib/i18n';
 import { openExternal } from '../lib/telegram';
 import type { StoreSettings } from '../lib/types';
 
-function Hero({ store }: { store?: StoreSettings }) {
-  const { t } = useT();
-  const media = store?.heroVideoUrl ? (
+function HeroMedia({ store, className }: { store: StoreSettings; className: string }) {
+  return store.heroVideoUrl ? (
     <video
-      className="absolute inset-0 size-full object-cover"
+      className={className}
       src={store.heroVideoUrl}
       poster={store.heroImageUrl ?? undefined}
       autoPlay
@@ -21,29 +20,62 @@ function Hero({ store }: { store?: StoreSettings }) {
       loop
       playsInline
       preload="metadata"
+      aria-hidden
     />
-  ) : store?.heroImageUrl ? (
-    <img className="absolute inset-0 size-full object-cover" src={store.heroImageUrl} alt="" fetchPriority="high" />
+  ) : store.heroImageUrl ? (
+    <img className={className} src={store.heroImageUrl} alt="" fetchPriority="high" />
   ) : null;
+}
+
+/**
+ * Phones: the shop's (vertical) video fills the screen behind the headline.
+ * Desktop: headline left, video framed on the right — vertical clips never get stretched and blurred.
+ */
+function Hero({ store }: { store?: StoreSettings }) {
+  const { t } = useT();
+  const hasMedia = Boolean(store?.heroVideoUrl || store?.heroImageUrl);
+
+  const headline = (
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}>
+      <p className="label mb-4 !text-camel">Betel · Addis Ababa</p>
+      <h1 className="display whitespace-pre-line text-[clamp(2.9rem,13vw,7.5rem)] md:text-[clamp(3.5rem,7vw,7rem)]">{t('hero.title')}</h1>
+      <Link to="/shop?sort=new" className={buttonClass('primary', 'lg', 'mt-8')}>
+        {t('hero.cta')}
+        <ArrowRight className="size-4" />
+      </Link>
+    </motion.div>
+  );
 
   return (
-    <section className="relative isolate flex min-h-[78svh] flex-col justify-end overflow-hidden md:min-h-[86svh]">
-      {media ?? (
-        // Until the owner's video is set: the shop's collar mark, stitched on
-        <div className="absolute inset-0 -z-10 grid place-items-center">
-          <Mark draw className="w-[min(92vw,640px)] translate-y-[-8%] opacity-[0.16]" fill="transparent" stroke="#B98B57" />
+    <section className="relative isolate overflow-hidden">
+      {/* Phone layout */}
+      <div className="relative flex min-h-[80svh] flex-col justify-end md:hidden">
+        {store && hasMedia ? (
+          <HeroMedia store={store} className="absolute inset-0 -z-10 size-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 -z-10 grid place-items-center">
+            <Mark draw className="w-[92vw] translate-y-[-8%] opacity-[0.16]" fill="transparent" stroke="#B98B57" />
+          </div>
+        )}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/50 to-ink/10" />
+        <div className="px-4 pb-10">{headline}</div>
+      </div>
+
+      {/* Desktop layout */}
+      <div className="mx-auto hidden min-h-[82svh] max-w-7xl grid-cols-[1.15fr_1fr] items-center gap-12 px-8 py-12 md:grid">
+        {headline}
+        <div className="relative flex justify-end">
+          {/* the collar mark, large and quiet, behind the frame */}
+          <Mark className="absolute -left-10 top-1/2 w-[120%] max-w-none -translate-y-1/2 opacity-[0.06]" fill="transparent" stroke="#B98B57" />
+          {store && hasMedia ? (
+            <div className="relative aspect-[9/16] h-[72svh] max-h-[760px] overflow-hidden rounded-[28px] border border-seam shadow-[0_40px_120px_-40px_rgba(185,139,87,0.45)]">
+              <HeroMedia store={store} className="size-full object-cover" />
+              <div className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-inset ring-white/10" />
+            </div>
+          ) : (
+            <Mark draw className="relative w-[420px] opacity-25" fill="transparent" stroke="#B98B57" />
+          )}
         </div>
-      )}
-      <div className="absolute inset-0 -z-0 bg-gradient-to-t from-ink via-ink/40 to-transparent" />
-      <div className="relative mx-auto w-full max-w-7xl px-4 pb-10 md:px-8 md:pb-16">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}>
-          <p className="label mb-4 !text-camel">Betel · Addis Ababa</p>
-          <h1 className="display whitespace-pre-line text-[clamp(2.9rem,13vw,7.5rem)]">{t('hero.title')}</h1>
-          <Link to="/shop?sort=new" className={buttonClass('primary', 'lg', 'mt-8')}>
-            {t('hero.cta')}
-            <ArrowRight className="size-4" />
-          </Link>
-        </motion.div>
       </div>
     </section>
   );
@@ -74,11 +106,19 @@ function CategoryRail() {
         <Link
           key={c.id}
           to={`/shop/${c.slug}`}
-          className="group relative flex h-28 w-36 shrink-0 snap-start flex-col justify-between overflow-hidden rounded-md border border-seam bg-wool p-3 transition-colors hover:border-steel md:h-36 md:w-48"
+          className="group relative flex aspect-[4/5] w-[38vw] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-md border border-seam bg-wool p-3 md:w-52"
         >
-          {c.imageUrl && <img src={c.imageUrl} alt="" loading="lazy" className="absolute inset-0 size-full object-cover opacity-50 transition-opacity group-hover:opacity-70" />}
-          <span className="relative font-mono text-[0.65rem] text-steel">{c.productCount}</span>
-          <span className="display relative text-[0.95rem] leading-tight">{pick(c.nameEn, c.nameAm)}</span>
+          {c.imageUrl && (
+            <img
+              src={c.imageUrl}
+              alt=""
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover transition-transform duration-700 ease-[var(--ease-tailor)] group-hover:scale-[1.04]"
+            />
+          )}
+          <span className="absolute inset-0 bg-gradient-to-t from-ink via-ink/30 to-transparent" aria-hidden />
+          <span className="display relative text-[0.9rem] leading-tight md:text-base">{pick(c.nameEn, c.nameAm)}</span>
+          <span className="relative mt-1 font-mono text-[0.62rem] text-chalk/60">{c.productCount}</span>
         </Link>
       ))}
     </div>
