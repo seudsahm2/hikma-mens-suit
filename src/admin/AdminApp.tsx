@@ -1,0 +1,191 @@
+import { lazy, Suspense, useState } from 'react';
+import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
+import { BarChart3, ExternalLink, LogOut, ReceiptText, Settings, Shirt, Users, UserCog } from 'lucide-react';
+import { Wordmark } from '../components/brand/Mark';
+import { Button, Input, PageLoader } from '../components/ui';
+import { api, ApiError } from '../lib/api';
+import { cn } from '../lib/format';
+import type { User } from '../lib/types';
+import { useStaff } from '../store/auth';
+import { adminApi } from './ui';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Orders = lazy(() => import('./pages/Orders'));
+const OrderDetail = lazy(() => import('./pages/OrderDetail'));
+const Products = lazy(() => import('./pages/Products'));
+const ProductEditor = lazy(() => import('./pages/ProductEditor'));
+const Customers = lazy(() => import('./pages/Customers'));
+const Staff = lazy(() => import('./pages/Staff'));
+const SettingsPage = lazy(() => import('./pages/Settings'));
+
+function Login() {
+  const setSession = useStaff((s) => s.setSession);
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const res = await api<{ token: string; user: User }>('/auth/staff/login', { body: { phone, password } });
+      setSession(res);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Sign-in failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="grid min-h-dvh place-items-center px-6">
+      <form onSubmit={submit} className="w-full max-w-sm space-y-5">
+        <Wordmark />
+        <h1 className="display pt-6 text-2xl">Shop admin</h1>
+        <Input name="phone" label="Phone" type="tel" autoComplete="username" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <Input
+          name="password"
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={error || undefined}
+        />
+        <Button type="submit" variant="accent" size="lg" block loading={busy} disabled={!phone || !password}>
+          Sign in
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+function Shell() {
+  const { user, signOut } = useStaff();
+  const navigate = useNavigate();
+  const isOwner = user?.role === 'OWNER';
+  const { data } = useQuery({
+    queryKey: ['admin', 'badge'],
+    queryFn: () => adminApi<{ needsReview: number }>('/orders', { query: { limit: 1 } }),
+    refetchInterval: 60_000,
+  });
+
+  const links = [
+    { to: '/admin', label: 'Overview', icon: BarChart3, end: true },
+    { to: '/admin/orders', label: 'Orders', icon: ReceiptText, badge: data?.needsReview },
+    { to: '/admin/products', label: 'Products', icon: Shirt },
+    { to: '/admin/customers', label: 'Customers', icon: Users },
+    ...(isOwner
+      ? [
+          { to: '/admin/staff', label: 'Admins', icon: UserCog },
+          { to: '/admin/settings', label: 'Settings', icon: Settings },
+        ]
+      : []),
+  ];
+
+  const link = ({ isActive }: { isActive: boolean }) =>
+    cn(
+      'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.9rem] transition-colors',
+      isActive ? 'bg-gradient-to-r from-wool-2 to-transparent text-chalk' : 'text-steel hover:text-chalk',
+    );
+
+  return (
+    <div className="min-h-dvh md:grid md:grid-cols-[248px_1fr]">
+      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-seam/80 bg-[radial-gradient(120%_60%_at_0%_0%,rgba(185,139,87,0.08),transparent_60%)] p-4 md:flex">
+        <div className="px-2 pb-2 pt-3">
+          <Wordmark />
+        </div>
+        <p className="label mt-8 px-3 !text-[0.6rem]">Back office</p>
+        <nav className="mt-3 space-y-0.5">
+          {links.map(({ to, label, icon: Icon, end, badge }) => (
+            <NavLink key={to} to={to} end={end} className={link}>
+              {({ isActive }) => (
+                <>
+                  <span
+                    className={cn('absolute -left-4 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full transition-colors', isActive ? 'bg-camel' : 'bg-transparent')}
+                    aria-hidden
+                  />
+                  <Icon className={cn('size-[1.05rem]', isActive && 'text-camel')} strokeWidth={1.7} />
+                  <span className="flex-1">{label}</span>
+                  {badge ? <span className="animate-pulse rounded-full bg-camel px-1.5 font-mono text-[0.65rem] text-ink">{badge}</span> : null}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+        <a href="/" target="_blank" rel="noreferrer" className="mx-3 mt-6 inline-flex items-center gap-2 text-[0.8rem] text-steel hover:text-camel">
+          <ExternalLink className="size-3.5" /> View shop
+        </a>
+        <div className="mt-auto flex items-center gap-3 rounded-xl border border-seam/80 bg-wool p-3">
+          <span className="grid size-9 place-items-center rounded-full bg-camel font-display text-sm font-bold text-ink">{user?.fullName.slice(0, 1)}</span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm">{user?.fullName}</p>
+            <p className="label !text-[0.58rem]">{user?.role === 'OWNER' ? 'Owner' : 'Admin'}</p>
+          </div>
+          <button
+            onClick={() => {
+              signOut();
+              navigate('/admin');
+            }}
+            className="rounded-full p-2 text-steel hover:text-chalk"
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <LogOut className="size-4" />
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile top bar + scrollable tabs */}
+      <div className="sticky top-0 z-30 border-b border-seam bg-ink/95 backdrop-blur md:hidden">
+        <div className="flex h-14 items-center justify-between px-4">
+          <Wordmark />
+          <button onClick={signOut} className="rounded-full p-2 text-steel" aria-label="Sign out">
+            <LogOut className="size-4" />
+          </button>
+        </div>
+        <nav className="no-scrollbar flex gap-1 overflow-x-auto px-3 pb-2">
+          {links.map(({ to, label, end, badge }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) =>
+                cn('flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[0.8rem]', isActive ? 'bg-chalk text-ink' : 'text-steel')
+              }
+            >
+              {label}
+              {badge ? <span className="rounded-full bg-camel px-1.5 font-mono text-[0.6rem] text-ink">{badge}</span> : null}
+            </NavLink>
+          ))}
+        </nav>
+      </div>
+
+      <main className="min-w-0 px-4 py-6 md:px-10 md:py-12">
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route index element={<Dashboard />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="orders/:id" element={<OrderDetail />} />
+            <Route path="products" element={<Products />} />
+            <Route path="products/new" element={<ProductEditor />} />
+            <Route path="products/:id" element={<ProductEditor />} />
+            <Route path="customers" element={<Customers />} />
+            {isOwner && <Route path="staff" element={<Staff />} />}
+            {isOwner && <Route path="settings" element={<SettingsPage />} />}
+            <Route path="*" element={<Navigate to="/admin" replace />} />
+          </Routes>
+        </Suspense>
+      </main>
+    </div>
+  );
+}
+
+export default function AdminApp() {
+  const token = useStaff((s) => s.token);
+  return token ? <Shell /> : <Login />;
+}
+
