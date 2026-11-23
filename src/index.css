@@ -1,0 +1,112 @@
+@import 'tailwindcss';
+
+/*
+  Hikma — design tokens
+  ink     #0D1015  midnight wool (base)
+  wool    #161A21  raised surface
+  seam    #262C35  hairlines, borders
+  chalk   #ECE9E3  primary text
+  steel   #7F8894  secondary text
+  camel   #B98B57  the one accent — tailor's tape
+*/
+@theme {
+  --color-ink: #0d1015;
+  --color-wool: #161a21;
+  --color-wool-2: #1d222b;
+  --color-seam: #262c35;
+  --color-chalk: #ece9e3;
+  --color-steel: #7f8894;
+  --color-camel: #b98b57;
+  --color-camel-soft: #d4ab78;
+  --color-danger: #e0715f;
+  --color-ok: #7fb38d;
+
+  --font-display: 'Archivo', 'Noto Sans Ethiopic', system-ui, sans-serif;
+  --font-sans: 'Hanken Grotesk', 'Noto Sans Ethiopic', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --ease-tailor: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    background: var(--color-ink);
+    color: var(--color-chalk);
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    font-family: var(--font-sans);
+    min-height: 100dvh;
+    overscroll-behavior-y: none;
+  }
+  /* Amharic reads better slightly larger */
+  :lang(am) body {
+    font-size: 1.03em;
+  }
+  ::selection {
+    background: var(--color-camel);
+    color: var(--color-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-camel);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  button {
+    cursor: pointer;
+  }
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+  img {
+    -webkit-user-drag: none;
+  }
+}
+
+@layer components {
+  /* Expanded, capitalised display face — reads like a hang tag */
+  .display {
+    font-family: var(--font-display);
+    font-stretch: 125%;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    line-height: 0.95;
+  }
+  :lang(am) .display {
+    font-stretch: 100%;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-steel);
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
