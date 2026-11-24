@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { initTelegram } from './lib/telegram';
+import { initTelegram, isMiniApp } from './lib/telegram';
 import './store/auth'; // wires the API client to the auth stores
 import { applyTheme, useTheme } from './store/theme';
 import App from './App';
@@ -23,3 +23,8 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// Installable app + offline photos (website only; Telegram has its own container)
+if (import.meta.env.PROD && 'serviceWorker' in navigator && !isMiniApp) {
+  window.addEventListener('load', () => void navigator.serviceWorker.register('/sw.js').catch(() => undefined));
+}

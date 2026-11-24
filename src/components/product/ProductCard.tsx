@@ -5,6 +5,7 @@ import { useT } from '../../lib/i18n';
 import { cn } from '../../lib/format';
 import type { ProductCard as Card } from '../../lib/types';
 import { salePrice, useSalePercent } from '../checkout/Offers';
+import { HeartButton } from '../after/After';
 
 export function ProductCard({ product, priority, className }: { product: Card; priority?: boolean; className?: string }) {
   const { t, pick } = useT();
@@ -35,6 +36,7 @@ export function ProductCard({ product, priority, className }: { product: Card; p
         {sale && product.inStock && (
           <span className="absolute bottom-2 left-2 rounded-full bg-ok px-2 py-0.5 font-mono text-[0.65rem] font-semibold text-ink">−{sale.percent}%</span>
         )}
+        <HeartButton productId={product.id} className="absolute bottom-2 right-2 size-9 rounded-full bg-ink/70 text-chalk backdrop-blur" />
         {product.original && (
           <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-ink/80 px-2 py-1 text-[0.6rem] font-medium uppercase tracking-wider text-chalk backdrop-blur">
             <BadgeCheck className="size-3 text-camel" /> {t('orig.badge')}

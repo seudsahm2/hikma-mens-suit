@@ -21,6 +21,7 @@ import { TelegramLogin } from '../components/layout/TelegramLogin';
 import { canSuggestSize, OriginalBadge, RatingLink, Reviews, SizeHelper, VideoTile } from '../components/product/Trust';
 import { useSizes, useSizeProfile } from '../store/sizes';
 import { CompleteTheLook, salePrice, useOfferNotes, useSalePercent } from '../components/checkout/Offers';
+import { HeartButton } from '../components/after/After';
 
 function useSelection(product?: P) {
   const colors = useMemo(() => {
@@ -261,7 +262,10 @@ export default function ProductPage() {
 
       <div className="px-4 pt-6 md:sticky md:top-24 md:self-start md:px-0 md:pt-0">
         {product.brand && <p className="label !text-camel">{product.brand.name}</p>}
-        <h1 className="display mt-2 text-[1.75rem] md:text-[2.4rem]">{name}</h1>
+        <div className="mt-2 flex items-start justify-between gap-3">
+          <h1 className="display text-[1.75rem] md:text-[2.4rem]">{name}</h1>
+          <HeartButton productId={product.id} className="mt-1 size-11 shrink-0 rounded-full border border-seam hover:border-steel" />
+        </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Price value={price} compareAt={sale ? (product.compareAtPrice ?? listPrice) : product.compareAtPrice} className="text-lg" />
           {sale && <span className="rounded-full bg-ok/15 px-2.5 py-1 text-xs font-medium text-ok">{sale.name} · −{sale.percent}%</span>}

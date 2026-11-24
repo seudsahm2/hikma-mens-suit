@@ -1,6 +1,9 @@
 import { Link, useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, LogOut, Moon, Phone, ReceiptText, Send, Sun } from 'lucide-react';
+import { ChevronRight, Download, Heart, LogOut, Moon, Phone, ReceiptText, Send, Sun } from 'lucide-react';
+import { useDataSaverStore } from '../store/dataSaver';
+import { useInstall } from '../lib/install';
+import { useWishlist } from '../store/wishlist';
 import { TelegramLogin } from '../components/layout/TelegramLogin';
 import { NewsToggle } from '../components/layout/NewsToggle';
 import { RewardsCard } from '../components/checkout/Offers';
@@ -34,6 +37,8 @@ function Preferences() {
   const { t } = useT();
   const { lang, setLang } = useLang();
   const { theme, setTheme } = useTheme();
+  const { choice, setChoice } = useDataSaverStore();
+  const install = useInstall();
   return (
     <section>
       <h2 className="label mb-2.5 px-1">{t('acc.prefs')}</h2>
@@ -60,6 +65,34 @@ function Preferences() {
             ]}
           />
         </div>
+        <div className="flex items-center justify-between gap-4 px-4 py-3">
+          <span>
+            <span className="block text-sm">{t('data.title')}</span>
+            <span className="block text-xs text-steel">{t('data.hint')}</span>
+          </span>
+          <Segmented
+            value={choice}
+            onChange={setChoice}
+            options={[
+              { value: 'auto', label: 'Auto' },
+              { value: 'on', label: 'On' },
+              { value: 'off', label: 'Off' },
+            ]}
+          />
+        </div>
+        {install.mode !== 'none' && (
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <span>
+              <span className="block text-sm">{t('app.install')}</span>
+              <span className="block text-xs text-steel">{install.mode === 'ios' ? t('app.iosHint') : t('app.installHint')}</span>
+            </span>
+            {install.mode === 'prompt' && (
+              <button onClick={() => void install.install()} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-camel px-4 text-sm font-semibold text-ink">
+                <Download className="size-4" /> {t('app.install')}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -70,6 +103,7 @@ export default function Account() {
   const { token, user, status, signOut } = useCustomer();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const savedCount = useWishlist((s) => s.ids.length);
 
   if (status === 'loading') return <PageLoader />;
 
@@ -122,6 +156,13 @@ export default function Account() {
       <Link to="/orders" className="mt-6 flex items-center gap-4 rounded-2xl border border-seam/80 bg-wool px-4 py-4 transition-colors hover:border-steel">
         <ReceiptText className="size-5 text-camel" />
         <span className="flex-1">{t('acc.orders')}</span>
+        <ChevronRight className="size-4 text-steel" />
+      </Link>
+
+      <Link to="/saved" className="mt-3 flex items-center gap-4 rounded-2xl border border-seam/80 bg-wool px-4 py-4 transition-colors hover:border-steel">
+        <Heart className="size-5 text-camel" />
+        <span className="flex-1">{t('saved.title')}</span>
+        <span className="font-mono text-sm text-steel">{savedCount || ''}</span>
         <ChevronRight className="size-4 text-steel" />
       </Link>
 

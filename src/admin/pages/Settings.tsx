@@ -61,6 +61,7 @@ type AllSettings = StoreSettings & {
   paymentVerifyKeySet: boolean;
   paymentVerifyServerKey: boolean;
   autoVerifyMethods: string[];
+  exchangeDays: number;
 };
 interface SettingsResponse {
   settings: AllSettings;
@@ -707,6 +708,27 @@ function ShopTab({ data }: { data: SettingsResponse }) {
         <Input name="annEn" label="Message" placeholder="e.g. New Turkish suits just arrived" value={f.announcementEn} onChange={(e) => set('announcementEn', e.target.value)} hint="Leave empty to hide it" />
         <Input name="annAm" label="Message in Amharic" value={f.announcementAm} onChange={(e) => set('announcementAm', e.target.value)} />
       </Fieldset>
+
+      <section>
+        <h2 className="label mb-2.5 px-1">Exchange window</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-seam/80 bg-gradient-to-b from-wool-2/60 to-wool px-4 py-3.5">
+          <span>
+            <span className="block text-sm">Customers can ask for a size exchange</span>
+            <span className="block text-xs text-steel">From “My orders”, after they receive the order</span>
+          </span>
+          <div className="flex rounded-full border border-seam p-1">
+            {[0, 3, 7, 14].map((d) => (
+              <button
+                key={d}
+                onClick={() => patch.mutate({ exchangeDays: d } as Partial<AllSettings>)}
+                className={cn('h-8 rounded-full px-3 font-mono text-sm transition-colors', data.settings.exchangeDays === d ? 'bg-chalk text-ink' : 'text-steel hover:text-chalk')}
+              >
+                {d === 0 ? 'Off' : `${d} days`}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <Fieldset title="Returns & exchange">
         <Textarea name="retEn" label="Policy" rows={5} value={f.returnPolicyEn} onChange={(e) => set('returnPolicyEn', e.target.value)} />

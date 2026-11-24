@@ -8,9 +8,11 @@ import { useCategories, useConfig, useProducts } from '../hooks/queries';
 import { useT } from '../lib/i18n';
 import { openExternal } from '../lib/telegram';
 import type { StoreSettings } from '../lib/types';
+import { useDataSaver } from '../store/dataSaver';
 
 function HeroMedia({ store, className }: { store: StoreSettings; className: string }) {
-  return store.heroVideoUrl ? (
+  const saver = useDataSaver(); // slow connection: the cover photo instead of the video
+  return store.heroVideoUrl && !(saver && store.heroImageUrl) ? (
     <video
       className={className}
       src={store.heroVideoUrl}

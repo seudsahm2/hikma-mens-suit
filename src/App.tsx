@@ -9,6 +9,7 @@ import { useCustomer, useStaff } from './store/auth';
 import { useCart } from './store/cart';
 import { useBagSync } from './lib/bagSync';
 import { captureInviteCode, useAttachInvite } from './components/checkout/Offers';
+import { useWishlistSync } from './store/wishlist';
 import Home from './pages/Home';
 
 const Shop = lazy(() => import('./pages/Shop'));
@@ -17,6 +18,7 @@ const Bag = lazy(() => import('./pages/Bag'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 const OrdersPage = lazy(() => import('./pages/Orders').then((m) => ({ default: m.OrdersPage })));
 const AccountPage = lazy(() => import('./pages/Account'));
+const SavedPage = lazy(() => import('./pages/Saved'));
 const OrderPage = lazy(() => import('./pages/Orders').then((m) => ({ default: m.OrderPage })));
 const InfoPage = lazy(() => import('./pages/Info').then((m) => ({ default: m.InfoPage })));
 const NotFound = lazy(() => import('./pages/Info').then((m) => ({ default: m.NotFound })));
@@ -45,6 +47,7 @@ const router = createBrowserRouter([
       { path: 'checkout', element: s(<Checkout />) },
       { path: 'orders', element: s(<OrdersPage />) },
       { path: 'account', element: s(<AccountPage />) },
+      { path: 'saved', element: s(<SavedPage />) },
       { path: 'orders/:orderNumber', element: s(<OrderPage />) },
       { path: 'info/:slug', element: s(<InfoPage />) },
       { path: '*', element: s(<NotFound />) },
@@ -57,6 +60,7 @@ export default function App() {
   const bootstrap = useCustomer((st) => st.bootstrap);
   useBagSync();
   useAttachInvite();
+  useWishlistSync();
 
   useEffect(() => {
     document.documentElement.lang = lang;

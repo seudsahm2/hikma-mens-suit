@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Loader2, X } from 'lucide-react';
 import { cn } from '../../lib/format';
 import type { ImageUrls } from '../../lib/types';
+import { useDataSaver } from '../../store/dataSaver';
 
 // ─── Button ──────────────────────────────────────────────
 
@@ -124,11 +125,12 @@ export function Img({
   className?: string;
   priority?: boolean;
 }) {
+  const saver = useDataSaver(); // slow connection: small photos only
   if (!urls) return <div className={cn('bg-wool-2', className)} aria-hidden />;
   return (
     <img
-      src={urls.md}
-      srcSet={`${urls.sm} 480w, ${urls.md} 960w, ${urls.lg} 1600w`}
+      src={saver ? urls.sm : urls.md}
+      srcSet={saver ? undefined : `${urls.sm} 480w, ${urls.md} 960w, ${urls.lg} 1600w`}
       sizes={sizes}
       alt={alt}
       loading={priority ? 'eager' : 'lazy'}
