@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { motion } from 'motion/react';
-import { Home, LayoutGrid, ReceiptText, Search, ShoppingBag } from 'lucide-react';
+import { Home, LayoutGrid, Moon, ReceiptText, Search, ShoppingBag, Sun, UserRound } from 'lucide-react';
 import { Wordmark } from '../brand/Mark';
 import { useTelegramBackButton } from './PrimaryAction';
 import { useConfig } from '../../hooks/queries';
@@ -10,6 +10,9 @@ import { cn } from '../../lib/format';
 import { isMiniApp } from '../../lib/telegram';
 import { cartCount, useCart } from '../../store/cart';
 import { useCampaignBanner } from '../checkout/Offers';
+import { useCustomer } from '../../store/auth';
+import { useTheme } from '../../store/theme';
+import { Avatar } from './Avatar';
 
 function LangToggle() {
   const { lang, setLang } = useLang();
@@ -21,6 +24,26 @@ function LangToggle() {
     >
       {lang === 'am' ? 'EN' : 'አማ'}
     </button>
+  );
+}
+
+function ThemeToggle({ className }: { className?: string }) {
+  const { theme, toggle } = useTheme();
+  return (
+    <button onClick={toggle} className={cn('grid size-10 place-items-center rounded-full text-steel transition-colors hover:bg-wool-2 hover:text-chalk', className)} aria-label={theme === 'dark' ? 'Light mode' : 'Dark mode'}>
+      {theme === 'dark' ? <Sun className="size-[1.2rem]" strokeWidth={1.6} /> : <Moon className="size-[1.2rem]" strokeWidth={1.6} />}
+    </button>
+  );
+}
+
+/** Signed in: Telegram photo (or initial) → account page. Signed out: person icon → sign in. */
+function AccountButton() {
+  const user = useCustomer((s) => (s.token ? s.user : null));
+  const { t } = useT();
+  return (
+    <Link to="/account" className="grid size-10 place-items-center rounded-full hover:bg-wool-2" aria-label={t('acc.title')}>
+      {user ? <Avatar user={user} className="size-8 text-sm ring-1 ring-seam" /> : <UserRound className="size-[1.3rem]" strokeWidth={1.6} />}
+    </Link>
   );
 }
 
@@ -74,7 +97,9 @@ function Header() {
             <Search className="size-[1.3rem]" strokeWidth={1.6} />
           </Link>
           <BagLink className="hidden md:grid" />
+          <ThemeToggle className="hidden md:grid" />
           <LangToggle />
+          <AccountButton />
         </div>
       </div>
     </header>

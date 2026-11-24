@@ -12,7 +12,7 @@ import { toast } from '../components/ui/toast';
 import { useConfig, useProduct, useProducts } from '../hooks/queries';
 import { useT } from '../lib/i18n';
 import { birr, cn, sortSizes } from '../lib/format';
-import { haptic, isMiniApp, openExternal } from '../lib/telegram';
+import { haptic, openExternal, usesNativeButton } from '../lib/telegram';
 import type { Product as P } from '../lib/types';
 import { useCart } from '../store/cart';
 import { useCustomer } from '../store/auth';
@@ -20,7 +20,7 @@ import { api, ApiError } from '../lib/api';
 import { TelegramLogin } from '../components/layout/TelegramLogin';
 import { canSuggestSize, OriginalBadge, RatingLink, Reviews, SizeHelper, VideoTile } from '../components/product/Trust';
 import { useSizes, useSizeProfile } from '../store/sizes';
-import { CompleteTheLook } from '../components/checkout/Offers';
+import { CompleteTheLook, salePrice, useOfferNotes, useSalePercent } from '../components/checkout/Offers';
 
 function useSelection(product?: P) {
   const colors = useMemo(() => {
@@ -108,6 +108,8 @@ export default function ProductPage() {
   const sizeProfile = useSizeProfile();
   const rememberSize = useSizes((s) => s.rememberSize);
   const remembered = product ? sizeProfile.sizes[product.category.slug] : undefined;
+  const sale = useSalePercent(product?.category.slug);
+  const offerNotes = useOfferNotes(product?.category.slug);
 
   // Pre-select the customer's usual size for this category (if it's in stock)
   const { size: selSize, setSize: selSetSize, isSizeAvailable } = sel;
@@ -174,7 +176,9 @@ export default function ProductPage() {
   const name = pick(product.nameEn, product.nameAm);
   const description = pick(product.descriptionEn, product.descriptionAm);
   const soldOut = !product.variants.some((v) => v.available > 0);
-  const price = sel.variant?.price ?? product.price;
+  const listPrice = sel.variant?.price ?? product.price;
+  // A running sale lowers the price right here (the server applies exactly the same at checkout)
+  const price = sale ? salePrice(listPrice, sale.percent) : listPrice;
   const lowStock = sel.variant && sel.variant.available > 0 && sel.variant.available <= 3 ? sel.variant.available : null;
 
   const addToBag = () => {
@@ -258,7 +262,19 @@ export default function ProductPage() {
       <div className="px-4 pt-6 md:sticky md:top-24 md:self-start md:px-0 md:pt-0">
         {product.brand && <p className="label !text-camel">{product.brand.name}</p>}
         <h1 className="display mt-2 text-[1.75rem] md:text-[2.4rem]">{name}</h1>
-        <Price value={price} compareAt={product.compareAtPrice} className="mt-3 block text-lg" />
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Price value={price} compareAt={sale ? (product.compareAtPrice ?? listPrice) : product.compareAtPrice} className="text-lg" />
+          {sale && <span className="rounded-full bg-ok/15 px-2.5 py-1 text-xs font-medium text-ok">{sale.name} · −{sale.percent}%</span>}
+        </div>
+        {offerNotes.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {offerNotes.map((n) => (
+              <span key={n.id} className="rounded-full border border-camel/40 px-2.5 py-1 text-xs text-camel">
+                {n.name} · {n.text}
+              </span>
+            ))}
+          </div>
+        )}
         {(product.rating || product.proofs.length > 0) && (
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <OriginalBadge product={product} />
@@ -397,7 +413,7 @@ export default function ProductPage() {
             transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.3 }}
             className={cn(
               'fixed inset-x-3 z-40 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-seam bg-wool-2/95 p-3 shadow-2xl shadow-black/50 backdrop-blur md:inset-x-auto md:right-6 md:top-20 md:mx-0 md:w-96',
-              isMiniApp ? 'bottom-4' : 'bottom-[calc(140px+env(safe-area-inset-bottom))] md:bottom-auto',
+              usesNativeButton ? 'bottom-4' : 'bottom-[calc(140px+env(safe-area-inset-bottom))] md:bottom-auto',
             )}
           >
             {added.image ? <img src={added.image} alt="" className="aspect-[4/5] w-12 rounded-md object-cover" /> : null}

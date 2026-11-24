@@ -8,7 +8,7 @@ import { startParam, startParamToPath } from './lib/telegram';
 import { useCustomer, useStaff } from './store/auth';
 import { useCart } from './store/cart';
 import { useBagSync } from './lib/bagSync';
-import { captureInviteCode } from './components/checkout/Offers';
+import { captureInviteCode, useAttachInvite } from './components/checkout/Offers';
 import Home from './pages/Home';
 
 const Shop = lazy(() => import('./pages/Shop'));
@@ -16,6 +16,7 @@ const ProductPage = lazy(() => import('./pages/Product'));
 const Bag = lazy(() => import('./pages/Bag'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 const OrdersPage = lazy(() => import('./pages/Orders').then((m) => ({ default: m.OrdersPage })));
+const AccountPage = lazy(() => import('./pages/Account'));
 const OrderPage = lazy(() => import('./pages/Orders').then((m) => ({ default: m.OrderPage })));
 const InfoPage = lazy(() => import('./pages/Info').then((m) => ({ default: m.InfoPage })));
 const NotFound = lazy(() => import('./pages/Info').then((m) => ({ default: m.NotFound })));
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
       { path: 'bag', element: s(<Bag />) },
       { path: 'checkout', element: s(<Checkout />) },
       { path: 'orders', element: s(<OrdersPage />) },
+      { path: 'account', element: s(<AccountPage />) },
       { path: 'orders/:orderNumber', element: s(<OrderPage />) },
       { path: 'info/:slug', element: s(<InfoPage />) },
       { path: '*', element: s(<NotFound />) },
@@ -54,6 +56,7 @@ export default function App() {
   const lang = useLang((st) => st.lang);
   const bootstrap = useCustomer((st) => st.bootstrap);
   useBagSync();
+  useAttachInvite();
 
   useEffect(() => {
     document.documentElement.lang = lang;

@@ -6,12 +6,16 @@ import { useT } from '../lib/i18n';
 import { birr } from '../lib/format';
 import { haptic } from '../lib/telegram';
 import { cartSubtotal, useCart } from '../store/cart';
+import { DiscountRows, useQuote } from '../components/checkout/Offers';
 
 export default function Bag() {
   const { t } = useT();
   const navigate = useNavigate();
   const { lines, setQty, remove } = useCart();
   const subtotal = cartSubtotal(lines);
+  // Looks, running sales and a friend's invite — priced by the server, exactly as checkout will charge
+  const { data: priced } = useQuote(lines, null, false);
+  const total = priced?.itemsTotal ?? subtotal;
 
   if (!lines.length) {
     return (
@@ -82,13 +86,28 @@ export default function Bag() {
           </li>
         ))}
       </ul>
-      <div className="mt-6 flex items-baseline justify-between">
-        <span className="text-steel">{t('bag.subtotal')}</span>
-        <Price value={subtotal} className="text-lg" />
+      <div className="mt-6 space-y-2 text-sm">
+        <div className="flex items-baseline justify-between">
+          <span className="text-steel">{t('bag.subtotal')}</span>
+          <Price value={subtotal} className={priced?.discountTotal ? 'text-steel line-through decoration-1' : 'text-lg'} />
+        </div>
+        {priced && priced.discountTotal > 0 && (
+          <>
+            <DiscountRows discounts={priced.discounts} giftNote={priced.giftNote} />
+            <div className="flex items-baseline justify-between border-t border-seam pt-2 text-base">
+              <span>{t('bag.total')}</span>
+              <span className="text-right">
+                <Price value={total} className="text-lg" />
+                <span className="block text-xs text-ok">{t('promo.saved', { n: birr(priced.discountTotal) })}</span>
+              </span>
+            </div>
+          </>
+        )}
+        {priced?.giftNote && !priced.discountTotal && <DiscountRows discounts={[]} giftNote={priced.giftNote} />}
       </div>
       <p className="mt-1 text-right text-xs text-steel">{t('product.deliveryText')}</p>
 
-      <PrimaryAction label={`${t('bag.continue')} · ${birr(subtotal)}`} onClick={() => navigate('/checkout')} />
+      <PrimaryAction label={`${t('bag.continue')} · ${birr(total)}`} onClick={() => navigate('/checkout')} />
     </div>
   );
 }

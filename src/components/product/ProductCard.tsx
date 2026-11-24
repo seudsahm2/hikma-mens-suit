@@ -4,11 +4,13 @@ import { Img, Price, Skeleton } from '../ui';
 import { useT } from '../../lib/i18n';
 import { cn } from '../../lib/format';
 import type { ProductCard as Card } from '../../lib/types';
+import { salePrice, useSalePercent } from '../checkout/Offers';
 
 export function ProductCard({ product, priority, className }: { product: Card; priority?: boolean; className?: string }) {
   const { t, pick } = useT();
   const name = pick(product.nameEn, product.nameAm);
   const [first, second] = product.images;
+  const sale = useSalePercent(product.category.slug); // running campaign → show the price they'll actually pay
   return (
     <Link to={`/p/${product.slug}`} className={cn('group block', className)}>
       <div className="relative aspect-[4/5] overflow-hidden rounded-md bg-wool">
@@ -30,6 +32,9 @@ export function ProductCard({ product, priority, className }: { product: Card; p
             {product.badge}
           </span>
         )}
+        {sale && product.inStock && (
+          <span className="absolute bottom-2 left-2 rounded-full bg-ok px-2 py-0.5 font-mono text-[0.65rem] font-semibold text-ink">−{sale.percent}%</span>
+        )}
         {product.original && (
           <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-ink/80 px-2 py-1 text-[0.6rem] font-medium uppercase tracking-wider text-chalk backdrop-blur">
             <BadgeCheck className="size-3 text-camel" /> {t('orig.badge')}
@@ -49,7 +54,11 @@ export function ProductCard({ product, priority, className }: { product: Card; p
         )}
         <div className="line-clamp-1 text-[0.92rem] font-medium leading-snug">{name}</div>
         <div className="flex items-center justify-between gap-2">
-          <Price value={product.price} compareAt={product.compareAtPrice} className="text-[0.85rem] text-chalk/90" />
+          <Price
+            value={sale ? salePrice(product.price, sale.percent) : product.price}
+            compareAt={sale ? (product.compareAtPrice ?? product.price) : product.compareAtPrice}
+            className="text-[0.85rem] text-chalk/90"
+          />
           {product.colors.length > 1 && (
             <span className="flex -space-x-1" aria-label={product.colors.map((c) => c.name).join(', ')}>
               {product.colors.slice(0, 4).map((c) => (

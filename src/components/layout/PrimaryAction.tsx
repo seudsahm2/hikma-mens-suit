@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Button } from '../ui';
-import { isMiniApp, tg } from '../../lib/telegram';
+import { tg, usesNativeButton } from '../../lib/telegram';
 
 interface Props {
   label: string;
@@ -21,7 +21,7 @@ export function PrimaryAction({ label, onClick, disabled, loading, aside }: Prop
   handler.current = onClick;
 
   useEffect(() => {
-    if (!tg) return;
+    if (!tg || !usesNativeButton) return;
     const mb = tg.MainButton;
     const cb = () => handler.current();
     mb.onClick(cb);
@@ -33,14 +33,14 @@ export function PrimaryAction({ label, onClick, disabled, loading, aside }: Prop
   }, []);
 
   useEffect(() => {
-    if (!tg) return;
+    if (!tg || !usesNativeButton) return;
     const mb = tg.MainButton;
     mb.setParams({ text: label, color: '#B98B57', text_color: '#0D1015', is_visible: true, is_active: !disabled && !loading });
     if (loading) mb.showProgress(false);
     else mb.hideProgress();
   }, [label, disabled, loading]);
 
-  if (isMiniApp) return null;
+  if (usesNativeButton) return null;
 
   return (
     <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 border-t border-seam bg-ink/90 px-4 py-3 backdrop-blur-md md:bottom-0">

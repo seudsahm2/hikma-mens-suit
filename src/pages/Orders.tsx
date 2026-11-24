@@ -229,6 +229,12 @@ export function OrderPage() {
       </section>
 
       <section className="mt-6 space-y-2 text-sm">
+        {(order.discountTotal ?? 0) > 0 && (
+          <div className="flex justify-between">
+            <span className="text-steel">{t('bag.subtotal')}</span>
+            <Price value={order.subtotal} />
+          </div>
+        )}
         {(order.discounts?.length || order.giftNote) && <DiscountRows discounts={order.discounts ?? []} giftNote={order.giftNote} />}
         <div className="flex justify-between">
           <span className="text-steel">{t('order.delivery')}</span>
@@ -243,7 +249,10 @@ export function OrderPage() {
         </div>
         <div className="flex justify-between pt-2 text-base">
           <span>{t('checkout.total')}</span>
-          <Price value={order.total} />
+          <span className="text-right">
+            <Price value={order.total} />
+            {(order.discountTotal ?? 0) > 0 && <span className="block text-xs text-ok">{t('promo.saved', { n: birr(order.discountTotal!) })}</span>}
+          </span>
         </div>
         {order.amountPaid > 0 && (
           <div className="flex justify-between">

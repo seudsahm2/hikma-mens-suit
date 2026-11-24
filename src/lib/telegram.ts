@@ -68,6 +68,24 @@ const wa: TgWebApp | undefined = typeof window !== 'undefined' ? window.Telegram
 export const isMiniApp = Boolean(wa && wa.initData);
 export const tg = isMiniApp ? wa! : undefined;
 
+/**
+ * Telegram's native bottom button feels right on phones. On Telegram Desktop / Web it's a wide bar
+ * that doesn't match the site, so there the shop looks and works exactly like the website.
+ */
+export const usesNativeButton = Boolean(tg && /^(android|ios)/i.test(tg.platform));
+
+/** Telegram header/background colour (follows the shop's light / dark theme). */
+export function setTelegramChrome(color: string) {
+  if (!tg) return;
+  try {
+    tg.setHeaderColor(color);
+    tg.setBackgroundColor(color);
+    tg.setBottomBarColor?.(color);
+  } catch {
+    /* older clients */
+  }
+}
+
 export function initTelegram() {
   if (!tg) return;
   tg.ready();

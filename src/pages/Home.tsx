@@ -49,7 +49,7 @@ function Hero({ store }: { store?: StoreSettings }) {
   return (
     <section className="relative isolate overflow-hidden">
       {/* Phone layout */}
-      <div className="relative flex min-h-[80svh] flex-col justify-end md:hidden">
+      <div className="stay-dark relative flex min-h-[80svh] flex-col justify-end bg-ink text-chalk md:hidden">
         {store && hasMedia ? (
           <HeroMedia store={store} className="absolute inset-0 -z-10 size-full object-cover" />
         ) : (
@@ -106,7 +106,7 @@ function CategoryRail() {
         <Link
           key={c.id}
           to={`/shop/${c.slug}`}
-          className="group relative flex aspect-[4/5] w-[38vw] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-md border border-seam bg-wool p-3 md:w-52"
+          className="stay-dark group relative flex aspect-[4/5] w-[38vw] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-md border border-seam bg-wool p-3 text-chalk md:w-52"
         >
           {c.imageUrl && (
             <img

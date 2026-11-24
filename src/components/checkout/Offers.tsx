@@ -56,14 +56,17 @@ export interface QuoteResult {
   creditBalance: number;
   codeError: string | null;
   codeApplied: boolean;
+  invite: { code: string | null; inviterName: string } | null;
+  inviteError: string | null;
 }
 
 export function useQuote(lines: CartLine[], code: string | null, useCredit: boolean) {
   const token = useCustomer((s) => s.token);
   const items = useMemo(() => lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })), [lines]);
+  const invite = savedInviteCode(); // from a friend's link; the account's saved inviter also counts (server side)
   return useQuery({
-    queryKey: ['quote', items, code, useCredit, token],
-    queryFn: () => api<QuoteResult>('/checkout/quote', { body: { items, code: code || undefined, useCredit } }),
+    queryKey: ['quote', items, code, invite, useCredit, token],
+    queryFn: () => api<QuoteResult>('/checkout/quote', { body: { items, code: code || undefined, invite: invite || undefined, useCredit } }),
     enabled: items.length > 0,
     placeholderData: keepPreviousData,
     staleTime: 15_000,
@@ -146,6 +149,7 @@ export function CodeAndCredit({
             </Button>
           </div>
           {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}
+          {quote?.inviteError && <p className="mt-1.5 text-xs text-camel">{quote.inviteError}</p>}
         </div>
       )}
       {(quote?.creditBalance ?? 0) > 0 && (
@@ -307,7 +311,15 @@ interface Rewards {
   loyalty: { percent: number } | null;
   credit: number;
   tier: { id: 'member' | 'gold' | 'vip'; name: string; spend: number; next: { id: string; name: string; at: number } | null };
-  referral: { code: string; link: string; webLink: string; reward: number; friendDiscount: number; minSubtotal: number } | null;
+  referral: {
+    code: string;
+    link: string;
+    webLink: string;
+    reward: number;
+    friendDiscount: number;
+    minSubtotal: number;
+    friends: { joined: number; ordered: number; rewarded: number; earned: number; pending: number };
+  } | null;
 }
 
 export function RewardsCard({ className }: { className?: string }) {
@@ -354,6 +366,20 @@ export function RewardsCard({ className }: { className?: string }) {
           <p className="mt-1 text-xs leading-relaxed text-steel">
             {t('rw.inviteText', { friend: birr(r.referral.friendDiscount), reward: birr(r.referral.reward) })}
           </p>
+          {r.referral.friends.joined > 0 && (
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              {[
+                [r.referral.friends.joined, t('rw.joined')],
+                [r.referral.friends.ordered, t('rw.ordered')],
+                [r.referral.friends.pending ? birr(r.referral.friends.pending) : birr(r.referral.friends.earned), r.referral.friends.pending ? t('rw.onTheWay') : t('rw.earned')],
+              ].map(([v, l]) => (
+                <div key={String(l)} className="rounded-xl bg-ink/40 px-2 py-2">
+                  <p className="font-mono text-sm">{v}</p>
+                  <p className="text-[0.65rem] text-steel">{l}</p>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="mt-3 flex gap-2">
             <Button variant="accent" size="sm" onClick={share}>
               <Send className="size-4" /> {t('rw.share')}
@@ -377,20 +403,68 @@ export function RewardsCard({ className }: { className?: string }) {
 
 // ─── Running campaign (shop banner) ──────────────────────
 
-interface Campaign {
+export function useCampaignBanner() {
+  const { pick } = useT();
+  const q = useCampaigns();
+  const c = q.data?.find((x) => x.bannerEn || x.bannerAm);
+  return c ? pick(c.bannerEn, c.bannerAm) : null;
+}
+
+// ─── Running campaigns on prices (before checkout) ───────
+
+export interface CampaignInfo {
   id: string;
   name: string;
+  type: 'PERCENT' | 'FIXED' | 'GIFT';
+  value: number;
+  giftText: string | null;
+  minSubtotal: number;
+  categorySlug: string | null;
   bannerEn: string | null;
   bannerAm: string | null;
 }
 
-export function useCampaignBanner() {
-  const { pick } = useT();
-  const q = useQuery({
+export function useCampaigns() {
+  return useQuery({
     queryKey: ['campaigns'],
-    queryFn: () => api<{ campaigns: Campaign[] }>('/promotions/active').then((r) => r.campaigns),
+    queryFn: () => api<{ campaigns: CampaignInfo[] }>('/promotions/active').then((r) => r.campaigns),
     staleTime: 5 * 60_000,
   });
-  const c = q.data?.find((x) => x.bannerEn || x.bannerAm);
-  return c ? pick(c.bannerEn, c.bannerAm) : null;
+}
+
+/** A sale that lowers this category's price right away (percent off, no minimum). The server applies the same. */
+export function useSalePercent(categorySlug: string | undefined) {
+  const { data } = useCampaigns();
+  if (!data || !categorySlug) return null;
+  const best = data
+    .filter((c) => c.type === 'PERCENT' && c.minSubtotal === 0 && (!c.categorySlug || c.categorySlug === categorySlug))
+    .sort((a, b) => b.value - a.value)[0];
+  return best ? { percent: best.value, name: best.name } : null;
+}
+export const salePrice = (price: number, percent: number) => price - Math.round((price * percent) / 100);
+
+/** Offers with a condition (minimum order, fixed amount, free gift) — shown as a short note. */
+export function useOfferNotes(categorySlug: string | undefined) {
+  const { data } = useCampaigns();
+  if (!data || !categorySlug) return [];
+  return data
+    .filter((c) => (!c.categorySlug || c.categorySlug === categorySlug) && !(c.type === 'PERCENT' && c.minSubtotal === 0))
+    .map((c) => {
+      const what = c.type === 'PERCENT' ? `−${c.value}%` : c.type === 'FIXED' ? `−${birr(c.value)}` : `🎁 ${c.giftText ?? ''}`;
+      return { id: c.id, name: c.name, text: c.minSubtotal ? `${what} · ${birr(c.minSubtotal)}+` : what };
+    });
+}
+
+/** Saves a friend's invite on the account as soon as the customer is signed in (works across devices). */
+export function useAttachInvite() {
+  const token = useCustomer((s) => s.token);
+  useEffect(() => {
+    const code = savedInviteCode();
+    if (!token || !code) return;
+    api<{ attached: boolean; reason?: string }>('/rewards/invite', { body: { code } })
+      .then((r) => {
+        if (r.attached || r.reason === 'already') forgetInviteCode();
+      })
+      .catch(() => undefined);
+  }, [token]);
 }

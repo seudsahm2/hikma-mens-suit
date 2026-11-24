@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0D1015" />
+    <script>
+      // Theme before first paint (no flash): saved choice, dark by default
+      try {
+        var t = JSON.parse(localStorage.getItem('hikma-theme') || '{}').state;
+        if (t && t.theme === 'light') document.documentElement.dataset.theme = 'light';
+      } catch (e) {}
+    </script>
     <meta name="color-scheme" content="dark" />
     <title>Hikma Men’s Fashion</title>
     <meta name="description" content="Suits, shirts, jeans, shoes and original perfumes. Betel, Addis Ababa — free delivery in Addis." />
