@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Send } from 'lucide-react';
 import { Button, Empty, ErrorState, PageLoader, buttonClass } from '../../components/ui';
 import { birr, cn } from '../../lib/format';
 import type { AdminProduct } from '../types';
@@ -90,6 +90,11 @@ export default function Products() {
                       {p.images[0] && <img src={p.images[0].urls.sm} alt="" className="size-full object-cover" loading="lazy" />}
                       {p.status !== 'ACTIVE' && (
                         <span className="absolute left-2 top-2 rounded bg-ink/85 px-2 py-0.5 font-mono text-[0.6rem] uppercase tracking-wider text-steel">{p.status}</span>
+                      )}
+                      {p.tags.includes('channel') && p.status === 'DRAFT' && (
+                        <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded bg-camel px-2 py-0.5 text-[0.62rem] font-semibold text-ink">
+                          <Send className="size-3" /> From channel
+                        </span>
                       )}
                     </div>
                     <div className="p-3">

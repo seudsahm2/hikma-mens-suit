@@ -28,7 +28,7 @@ interface DeliveryRow {
   sortOrder: number;
 }
 interface SettingsResponse {
-  settings: StoreSettings & { channelChatId: string | null; adminChatId: string | null };
+  settings: StoreSettings & { channelChatId: string | null; adminChatId: string | null; channelAutoImport: boolean };
   paymentMethods: PaymentMethodRow[];
   deliveryOptions: DeliveryRow[];
   telegram: { botConfigured: boolean; botUsername: string };
@@ -283,6 +283,14 @@ function TelegramCard({ settings, telegram }: { settings: SettingsResponse['sett
     onSuccess: setCode,
     onError,
   });
+  const autoImport = useMutation({
+    mutationFn: (on: boolean) => adminApi('/settings', { method: 'PUT', body: { channelAutoImport: on } }),
+    onSuccess: (_r, on) => {
+      toast.ok(on ? 'New channel posts will become drafts' : 'Channel auto-import is off');
+      void qc.invalidateQueries({ queryKey: ['admin', 'settings'] });
+    },
+    onError,
+  });
   const bot = telegram.botUsername;
   const command = code ? (code.purpose === 'admin' ? `/link@${bot} ${code.code}` : `/link ${code.code}`) : '';
 
@@ -318,6 +326,16 @@ function TelegramCard({ settings, telegram }: { settings: SettingsResponse['sett
             {settings.channelChatId ? 'Change' : 'Connect'}
           </Button>
         </div>
+        {settings.channelChatId && (
+          <div className="rounded-xl border border-seam/80 bg-ink/40 px-4 py-1">
+            <Toggle
+              checked={settings.channelAutoImport}
+              onChange={(v) => autoImport.mutate(v)}
+              label="New channel posts become drafts"
+              hint="Post on Telegram as usual — each new photo post appears in Products → Drafts with its price and photos."
+            />
+          </div>
+        )}
 
         {code && (
           <div className="rounded-xl border border-camel/40 bg-camel/[0.05] p-4">
