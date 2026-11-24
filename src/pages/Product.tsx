@@ -248,7 +248,10 @@ export default function ProductPage() {
   const f = product.fragrance;
 
   return (
-    <div className="mx-auto max-w-7xl md:grid md:grid-cols-[1.25fr_1fr] md:gap-12 md:px-8 md:pt-8">
+    <div className="mx-auto max-w-7xl md:px-8 md:pt-8">
+      {/* Photos + details. The details column stays pinned while scrolling, but only within this block,
+          so it can never slide over the reviews / related products below. */}
+      <div className="md:grid md:grid-cols-[1.25fr_1fr] md:gap-12">
       <Gallery images={product.images} alt={name} focusColor={sel.color} />
 
       <div className="px-4 pt-6 md:sticky md:top-24 md:self-start md:px-0 md:pt-0">
@@ -364,12 +367,14 @@ export default function ProductPage() {
           <ChevronRight className="size-4 text-steel" />
         </button>
       </div>
+      </div>
 
       <Reviews product={product} />
 
       {(related.data?.products.length ?? 0) > 0 && (
-        <section className="col-span-2 mt-16 px-4 md:px-0">
-          <h2 className="display mb-5 text-[1.35rem]">{t('product.related')}</h2>
+        <section className="mt-16 px-4 md:px-0">
+          {/* Same-category picks: name them after the category ("More perfumes", "More suits") */}
+          <h2 className="display mb-5 text-[1.35rem]">{t('product.moreOf', { category: pick(product.category.nameEn, product.category.nameAm) })}</h2>
           <ProductRail products={related.data?.products} />
         </section>
       )}

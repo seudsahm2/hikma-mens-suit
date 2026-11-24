@@ -240,7 +240,7 @@ export function Reviews({ product }: { product: Product }) {
   const photos = reviews.flatMap((r) => r.photos);
 
   return (
-    <section id="reviews" className="col-span-2 mt-16 scroll-mt-24 px-4 md:px-0">
+    <section id="reviews" className="mt-16 scroll-mt-24 px-4 md:px-0">
       <h2 className="display mb-6 text-[1.35rem]">{t('rev.title')}</h2>
       {summary && (
         <div className="grid gap-8 md:grid-cols-[260px_1fr]">
