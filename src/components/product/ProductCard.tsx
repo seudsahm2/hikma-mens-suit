@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { BadgeCheck, Star } from 'lucide-react';
 import { Img, Price, Skeleton } from '../ui';
 import { useT } from '../../lib/i18n';
 import { cn } from '../../lib/format';
@@ -29,9 +30,23 @@ export function ProductCard({ product, priority, className }: { product: Card; p
             {product.badge}
           </span>
         )}
+        {product.original && (
+          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-ink/80 px-2 py-1 text-[0.6rem] font-medium uppercase tracking-wider text-chalk backdrop-blur">
+            <BadgeCheck className="size-3 text-camel" /> {t('orig.badge')}
+          </span>
+        )}
       </div>
       <div className="mt-3 space-y-1 px-0.5">
-        {product.brand && <div className="label !text-[0.6rem]">{product.brand.name}</div>}
+        {(product.brand || product.rating) && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="label !text-[0.6rem]">{product.brand?.name}</span>
+            {product.rating && (
+              <span className="inline-flex items-center gap-0.5 font-mono text-[0.65rem] text-chalk/80">
+                <Star className="size-3 fill-camel text-camel" /> {product.rating.average.toFixed(1)}
+              </span>
+            )}
+          </div>
+        )}
         <div className="line-clamp-1 text-[0.92rem] font-medium leading-snug">{name}</div>
         <div className="flex items-center justify-between gap-2">
           <Price value={product.price} compareAt={product.compareAtPrice} className="text-[0.85rem] text-chalk/90" />

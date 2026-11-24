@@ -46,6 +46,9 @@ export interface ProductCard {
   inStock: boolean;
   colors: ColorOption[];
   images: ProductImage[];
+  /** owner added proof photos (box, tags, receipt) */
+  original?: boolean;
+  rating?: { average: number; count: number } | null;
 }
 
 export interface Variant {
@@ -65,6 +68,8 @@ export interface Product extends Omit<ProductCard, 'category'> {
   material: string | null;
   fit: string | null;
   tikTokUrl: string | null;
+  tikTokVideoId: string | null;
+  proofs: { id: string; label: 'box' | 'tag' | 'receipt' | 'other'; urls: ProductImage['urls'] }[];
   sizes: string[];
   variants: Variant[];
   fragrance: {
@@ -152,6 +157,30 @@ export interface User {
   area: string | null;
   landmark: string | null;
   newsOptIn?: boolean;
+  sizeProfile?: SizeProfile;
+}
+
+export interface SizeProfile {
+  height?: number;
+  weight?: number;
+  fit?: 'slim' | 'regular' | 'loose';
+  sizes: Record<string, string>;
+}
+
+export interface Review {
+  id: string;
+  rating: number;
+  text: string | null;
+  size: string;
+  name: string;
+  photos: { id: string; urls: ProductImage['urls'] }[];
+  createdAt: string;
+}
+export interface ReviewSummary {
+  average: number | null;
+  count: number;
+  distribution: number[];
+  withPhotos: number;
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PACKING' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'PICKED_UP' | 'CANCELLED';

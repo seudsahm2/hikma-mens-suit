@@ -43,6 +43,10 @@ export interface AdminProduct {
   tikTokUrl: string | null;
   telegramPostUrl: string | null;
   images: ProductImage[];
+  /** "Original" proof photos (box, tags, receipt) */
+  proofs: { id: string; label: 'box' | 'tag' | 'receipt' | 'other'; urls: ProductImage['urls'] }[];
+  ratingAvg?: number | null;
+  ratingCount?: number;
   variants: AdminVariant[];
   totalStock: number;
   updatedAt: string;

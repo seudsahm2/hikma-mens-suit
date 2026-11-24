@@ -6,6 +6,7 @@ import { Check, ChevronRight, ImagePlus } from 'lucide-react';
 import { Mark } from '../components/brand/Mark';
 import { TelegramLogin } from '../components/layout/TelegramLogin';
 import { NewsToggle } from '../components/layout/NewsToggle';
+import { RatePurchases } from '../components/product/Trust';
 import { Button, Empty, ErrorState, Input, PageLoader, Price, buttonClass } from '../components/ui';
 import { toast } from '../components/ui/toast';
 import { useConfig, useMyOrders, useOrder } from '../hooks/queries';
@@ -44,6 +45,7 @@ export function OrdersPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6 md:pt-10">
       <h1 className="display text-[2rem]">{t('orders.title')}</h1>
+      <RatePurchases className="mt-6" />
       <NewsToggle className="mt-6" />
       <ul className="mt-6 divide-y divide-seam border-y border-seam">
         {data.map((o) => (
@@ -193,6 +195,8 @@ export function OrderPage() {
         <p className="text-xs text-steel">{formatDate(order.createdAt, lang)}</p>
       </div>
       <p className={cn('mt-1 text-sm', statusTone(order))}>{t(`pay.${order.paymentStatus}`)}</p>
+
+      <RatePurchases orderNumber={order.orderNumber} autoOpen={params.get('review') === '1'} className="mt-6" />
 
       <div className="mt-8">
         <Timeline order={order} />

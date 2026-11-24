@@ -18,6 +18,8 @@ import { useCart } from '../store/cart';
 import { useCustomer } from '../store/auth';
 import { api, ApiError } from '../lib/api';
 import { TelegramLogin } from '../components/layout/TelegramLogin';
+import { canSuggestSize, OriginalBadge, RatingLink, Reviews, SizeHelper, VideoTile } from '../components/product/Trust';
+import { useSizes, useSizeProfile } from '../store/sizes';
 
 function useSelection(product?: P) {
   const colors = useMemo(() => {
@@ -101,6 +103,17 @@ export default function ProductPage() {
   const navigate = useNavigate();
   const [added, setAdded] = useState<{ image: string | null; name: string; detail: string } | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  const [helperOpen, setHelperOpen] = useState(false);
+  const sizeProfile = useSizeProfile();
+  const rememberSize = useSizes((s) => s.rememberSize);
+  const remembered = product ? sizeProfile.sizes[product.category.slug] : undefined;
+
+  // Pre-select the customer's usual size for this category (if it's in stock)
+  const { size: selSize, setSize: selSetSize, isSizeAvailable } = sel;
+  useEffect(() => {
+    if (remembered && !selSize && isSizeAvailable(remembered)) selSetSize(remembered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id, remembered, sel.color]);
 
   // The "added" card hides itself after a few seconds
   useEffect(() => {
@@ -185,6 +198,7 @@ export default function ProductPage() {
       price: v.price,
       max: v.available,
     });
+    rememberSize(product.category.slug, v.size);
     haptic.success();
     setAdded({ image: image?.urls.sm ?? null, name, detail: [v.size, v.color].filter(Boolean).join(' · ') });
   };
@@ -241,6 +255,12 @@ export default function ProductPage() {
         {product.brand && <p className="label !text-camel">{product.brand.name}</p>}
         <h1 className="display mt-2 text-[1.75rem] md:text-[2.4rem]">{name}</h1>
         <Price value={price} compareAt={product.compareAtPrice} className="mt-3 block text-lg" />
+        {(product.rating || product.proofs.length > 0) && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <OriginalBadge product={product} />
+            <RatingLink product={product} />
+          </div>
+        )}
 
         {sel.colors.length > 0 && (
           <div className="mt-8">
@@ -278,15 +298,22 @@ export default function ProductPage() {
           <motion.div ref={pickerRef} animate={shake} className="mt-8">
             <div className="mb-3 flex items-baseline justify-between">
               <p className="label">{t('product.size')}</p>
-              {product.category.sizeGuide && (
-                <button onClick={() => setGuideOpen(true)} className="text-xs text-steel underline underline-offset-4 hover:text-chalk">
-                  {t('product.sizeGuide')}
-                </button>
-              )}
+              <span className="flex items-center gap-4">
+                {canSuggestSize(product.category) && (
+                  <button onClick={() => setHelperOpen(true)} className="text-xs text-camel underline underline-offset-4 hover:text-chalk">
+                    {t('size.findMine')}
+                  </button>
+                )}
+                {product.category.sizeGuide && (
+                  <button onClick={() => setGuideOpen(true)} className="text-xs text-steel underline underline-offset-4 hover:text-chalk">
+                    {t('product.sizeGuide')}
+                  </button>
+                )}
+              </span>
             </div>
             <TapeSizePicker sizes={sel.sizes} value={sel.size} isAvailable={sel.isSizeAvailable} onChange={sel.setSize} label={t('product.size')} />
-            <p className={cn('mt-3 h-4 font-mono text-xs', lowStock ? 'text-camel' : 'text-transparent')}>
-              {lowStock ? t('product.onlyLeft', { n: lowStock }) : '·'}
+            <p className={cn('mt-3 h-4 font-mono text-xs', lowStock ? 'text-camel' : sel.size && sel.size === remembered ? 'text-steel' : 'text-transparent')}>
+              {lowStock ? t('product.onlyLeft', { n: lowStock }) : sel.size && sel.size === remembered ? `✓ ${t('size.yours')}` : '·'}
             </p>
           </motion.div>
         )}
@@ -309,6 +336,8 @@ export default function ProductPage() {
           <Truck className="size-4 shrink-0 text-camel" strokeWidth={1.6} />
           {t('product.deliveryText')}
         </div>
+
+        <VideoTile product={product} />
 
         {description && <p className="mt-8 whitespace-pre-line leading-relaxed text-chalk/80">{description}</p>}
 
@@ -335,6 +364,8 @@ export default function ProductPage() {
           <ChevronRight className="size-4 text-steel" />
         </button>
       </div>
+
+      <Reviews product={product} />
 
       {(related.data?.products.length ?? 0) > 0 && (
         <section className="col-span-2 mt-16 px-4 md:px-0">
@@ -385,6 +416,15 @@ export default function ProductPage() {
       </AnimatePresence>
 
       <SizeGuide product={product} open={guideOpen} onClose={() => setGuideOpen(false)} />
+      {canSuggestSize(product.category) && (
+        <SizeHelper
+          category={product.category}
+          open={helperOpen}
+          onClose={() => setHelperOpen(false)}
+          isAvailable={sel.isSizeAvailable}
+          onPick={(s) => sel.setSize(s)}
+        />
+      )}
       {/* Sign in to get the back-in-stock message on Telegram */}
       <Sheet open={Boolean(signInFor) && !token} onClose={() => setSignInFor(null)}>
         <TelegramLogin />

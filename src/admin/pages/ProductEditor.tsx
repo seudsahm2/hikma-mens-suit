@@ -561,6 +561,92 @@ function PendingPhotos({ photos, setPhotos, missing }: { photos: Pending[]; setP
   );
 }
 
+// ─── "Original" proof photos ─────────────────────────────
+
+const PROOF_SLOTS = [
+  { label: 'box', title: 'Box' },
+  { label: 'tag', title: 'Tags' },
+  { label: 'receipt', title: 'Receipt' },
+  { label: 'other', title: 'Other' },
+] as const;
+
+function ProofPhotos({ product, onChange }: { product: AdminProduct; onChange: (p: AdminProduct) => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const upload = async (label: string, files: File[]) => {
+    if (!files.length) return;
+    setBusy(label);
+    try {
+      const form = new FormData();
+      form.set('label', label);
+      files.slice(0, 4).forEach((f) => form.append('images', f));
+      onChange((await adminApi<{ product: AdminProduct }>(`/products/${product.id}/proofs`, { form })).product);
+    } catch (err) {
+      toast.error(errMsg(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const remove = async (id: string) => {
+    if (!window.confirm('Delete this photo?')) return;
+    try {
+      onChange((await adminApi<{ product: AdminProduct }>(`/products/${product.id}/proofs/${id}`, { method: 'DELETE' })).product);
+    } catch (err) {
+      toast.error(errMsg(err));
+    }
+  };
+  const on = product.proofs.length > 0;
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm">Proof it’s original</p>
+        <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs', on ? 'bg-ok/15 text-ok' : 'bg-seam text-steel')}>
+          <Check className="size-3.5" /> {on ? '“Original” badge is showing' : 'Add a photo to show the “Original” badge'}
+        </span>
+      </div>
+      <div className="grid grid-cols-4 gap-2.5">
+        {PROOF_SLOTS.map((slot) => {
+          const photos = product.proofs.filter((p) => p.label === slot.label);
+          return (
+            <div key={slot.label} className="space-y-2">
+              {photos.map((p) => (
+                <div key={p.id} className="relative">
+                  <img src={p.urls.sm} alt="" className="aspect-square w-full rounded-xl object-cover" />
+                  <button
+                    onClick={() => remove(p.id)}
+                    className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-ink/80 hover:text-danger"
+                    aria-label="Remove photo"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+              <label
+                className={cn(
+                  'flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-seam text-xs text-steel hover:border-camel hover:text-chalk',
+                  busy === slot.label && 'pointer-events-none opacity-50',
+                )}
+              >
+                <Camera className="size-5" />
+                {busy === slot.label ? '…' : slot.title}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="sr-only"
+                  onChange={(e) => {
+                    void upload(slot.label, [...(e.target.files ?? [])]);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Sharing (on-sale products only) ─────────────────────
 
 interface BroadcastInfo {
@@ -754,7 +840,7 @@ export default function ProductEditor() {
   const waiting = (product?.variants ?? [])
     .filter((v) => (v._count?.alerts ?? 0) > 0)
     .map((v) => ({ label: [v.size, v.color].filter(Boolean).join(' / ') || 'this item', count: v._count!.alerts }));
-  const moreFilled = [form.compareAtPrice, form.costPrice, form.brandName, form.nameAm, form.origin, form.material, form.fit, form.descriptionEn, form.descriptionAm, form.badge, form.tags, form.tikTokUrl, form.volumeMl, form.concentration, form.scentFamily].filter(Boolean).length;
+  const moreFilled = [form.compareAtPrice, form.costPrice, form.brandName, form.nameAm, form.origin, form.material, form.fit, form.descriptionEn, form.descriptionAm, form.badge, form.tags, form.volumeMl, form.concentration, form.scentFamily].filter(Boolean).length;
 
   /**
    * One save for everything. Going on sale happens last, after the photos and stock are in,
@@ -912,7 +998,22 @@ export default function ProductEditor() {
         missing={tried && total === 0}
       />
 
-      {/* 4 · Everything optional */}
+      {/* 4 · Trust: TikTok video + "Original" proof */}
+      <Card title="Video & proof">
+        <Input
+          name="tikTokUrl"
+          label="TikTok video of this product"
+          placeholder="Paste the link from TikTok → Share → Copy link"
+          value={form.tikTokUrl}
+          onChange={(e) => set('tikTokUrl', e.target.value.trim())}
+          hint={form.tikTokUrl ? 'Customers can watch it on the product page (saved with the product).' : 'Optional — men trust your videos.'}
+        />
+        <div className="mt-6 border-t border-seam/60 pt-5">
+          {product ? <ProofPhotos product={product} onChange={setProduct} /> : <p className="text-sm text-steel">Save the product first, then add photos of the box, tags and receipt to show the “Original” badge.</p>}
+        </div>
+      </Card>
+
+      {/* 5 · Everything optional */}
       <Card flush>
         <button type="button" onClick={() => setMore((m) => !m)} className="flex w-full items-center justify-between px-5 py-4 text-left">
           <span>
@@ -957,10 +1058,9 @@ export default function ProductEditor() {
             </div>
             <Textarea name="descriptionEn" label="Description" rows={3} value={form.descriptionEn} onChange={(e) => set('descriptionEn', e.target.value)} />
             <Textarea name="descriptionAm" label="Description in Amharic" rows={3} value={form.descriptionAm} onChange={(e) => set('descriptionAm', e.target.value)} />
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Input name="badge" label="Badge" placeholder="New, −20%…" value={form.badge} onChange={(e) => set('badge', e.target.value)} />
               <Input name="tags" label="Search words" placeholder="wedding, office" value={form.tags} onChange={(e) => set('tags', e.target.value)} />
-              <Input name="tikTokUrl" label="TikTok video link" value={form.tikTokUrl} onChange={(e) => set('tikTokUrl', e.target.value)} />
             </div>
             <div className="grid gap-x-8 sm:grid-cols-2">
               <Toggle checked={form.isNewArrival} onChange={(v) => set('isNewArrival', v)} label="New in" hint="Shown in the New in row" />
