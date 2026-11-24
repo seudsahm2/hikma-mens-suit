@@ -41,6 +41,8 @@ export interface AdminProduct {
   notesHeart: string[];
   notesBase: string[];
   tikTokUrl: string | null;
+  preorder: boolean;
+  preorderNote: string | null;
   telegramPostUrl: string | null;
   images: ProductImage[];
   /** "Original" proof photos (box, tags, receipt) */

@@ -7,6 +7,8 @@ export interface CartLine {
   slug: string;
   /** for showing running sales in the bag (older lines may not have it) */
   categorySlug?: string;
+  /** pre-order item (deposit now, arrives later) */
+  preorder?: boolean;
   name: string;
   image: string | null;
   size: string;

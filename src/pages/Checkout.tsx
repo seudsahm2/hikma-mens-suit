@@ -145,7 +145,8 @@ export default function Checkout() {
   const fee = delivery?.fee ?? null;
   const total = (priced?.itemsTotal ?? subtotal) + (fee ?? 0);
   const canDeposit = config.store.partialPaymentEnabled && !isCash;
-  const dueNow = canDeposit && deposit ? Math.ceil((total * config.store.depositPercent) / 100) : total;
+  const hasPreorder = lines.some((l) => l.preorder);
+  const dueNow = canDeposit && (deposit || hasPreorder) ? Math.ceil((total * config.store.depositPercent) / 100) : total;
 
   const useTelegramPhone = async () => {
     const p = await requestPhone();
@@ -221,7 +222,7 @@ export default function Checkout() {
           lat: coords?.lat,
           lng: coords?.lng,
           paymentMethodId: method!.id,
-          payDeposit: canDeposit && deposit,
+          payDeposit: canDeposit && (deposit || hasPreorder),
           note: note.trim() || undefined,
           source: isMiniApp ? 'MINI_APP' : 'WEB',
           code: code && priced?.codeApplied ? code : undefined,
@@ -359,7 +360,8 @@ export default function Checkout() {
           ))}
         </div>
 
-        {canDeposit && (
+        {canDeposit && hasPreorder && <p className="mt-5 rounded-xl border border-seam px-4 py-3 text-sm text-steel">{t('pre.checkout')}</p>}
+        {canDeposit && !hasPreorder && (
           <div className="mt-5 grid grid-cols-2 gap-1 rounded-full border border-seam p-1" role="radiogroup">
             {[false, true].map((d) => (
               <button

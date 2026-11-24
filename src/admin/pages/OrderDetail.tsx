@@ -8,6 +8,7 @@ import { ApiError } from '../../lib/api';
 import { birr, cn, formatDateTime } from '../../lib/format';
 import type { Order, OrderStatus } from '../../lib/types';
 import { adminApi, Card, PaymentBadge, StatusBadge, statusLabel } from '../ui';
+import { DriverCard } from './Drivers';
 
 const NEXT: Record<OrderStatus, OrderStatus[]> = {
   PENDING: ['CONFIRMED', 'PACKING'],
@@ -247,6 +248,8 @@ export default function OrderDetail() {
               {order.note && <p className="mt-3 rounded-lg bg-ink p-3 text-steel">“{order.note}”</p>}
             </div>
           </Card>
+
+          <DriverCard order={order} onChange={(o) => onDone(o, 'Saved')} />
 
           {open && (
             <Card title="Update status">

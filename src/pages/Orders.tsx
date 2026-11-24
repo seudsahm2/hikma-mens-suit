@@ -201,6 +201,18 @@ export function OrderPage() {
       </div>
       <p className={cn('mt-1 text-sm', statusTone(order))}>{t(`pay.${order.paymentStatus}`)}</p>
 
+      {order.deliveryCode && (
+        <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-camel/50 bg-camel/[0.07] px-5 py-4">
+          <div>
+            <p className="label !text-camel">{t('order.code')}</p>
+            <p className="mt-1 max-w-[16rem] text-xs text-steel">{t('order.codeHint')}</p>
+          </div>
+          <p className="font-mono text-4xl tracking-[0.2em]">{order.deliveryCode}</p>
+        </div>
+      )}
+      {order.isPreorder && order.status !== 'DELIVERED' && order.status !== 'PICKED_UP' && order.status !== 'CANCELLED' && (
+        <p className="mt-6 rounded-2xl border border-seam px-4 py-3 text-sm text-steel">{t('order.preorder')}</p>
+      )}
       <RatePurchases orderNumber={order.orderNumber} autoOpen={params.get('review') === '1'} className="mt-6" />
       <ExchangeBlock order={order} />
       <HelpBlock order={order} store={config?.store} autoOpen={params.get('help') === '1'} />

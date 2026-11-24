@@ -37,6 +37,9 @@ export function ProductCard({ product, priority, className }: { product: Card; p
           <span className="absolute bottom-2 left-2 rounded-full bg-ok px-2 py-0.5 font-mono text-[0.65rem] font-semibold text-ink">−{sale.percent}%</span>
         )}
         <HeartButton productId={product.id} className="absolute bottom-2 right-2 size-9 rounded-full bg-ink/70 text-chalk backdrop-blur" />
+        {product.preorder && (
+          <span className="absolute left-2 top-2 rounded-sm bg-chalk px-2 py-1 font-mono text-[0.6rem] uppercase tracking-widest text-ink">{t('pre.badge')}</span>
+        )}
         {product.original && (
           <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-ink/80 px-2 py-1 text-[0.6rem] font-medium uppercase tracking-wider text-chalk backdrop-blur">
             <BadgeCheck className="size-3 text-camel" /> {t('orig.badge')}

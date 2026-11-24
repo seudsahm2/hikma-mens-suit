@@ -198,6 +198,7 @@ export default function ProductPage() {
       productId: product.id,
       slug: product.slug,
       categorySlug: product.category.slug,
+      preorder: Boolean(product.preorder),
       name: product.nameEn,
       image: image?.urls.sm ?? null,
       size: v.size,
@@ -242,7 +243,7 @@ export default function ProductPage() {
       ? t('product.pickSizeNotify')
       : inBag
         ? t('product.inBag')
-        : `${t('product.addToBag')} · ${birr(price)}`;
+        : `${product.preorder ? t('pre.button') : t('product.addToBag')} · ${birr(price)}`;
   const mainAction = () => (alertVariant ? void toggleAlert() : needSizeForAlert || !inBag ? addToBag() : navigate('/bag'));
   const mainDisabled = alertBusy;
 
@@ -271,6 +272,13 @@ export default function ProductPage() {
           <Price value={price} compareAt={sale ? (product.compareAtPrice ?? listPrice) : product.compareAtPrice} className="text-lg" />
           {sale && <span className="rounded-full bg-ok/15 px-2.5 py-1 text-xs font-medium text-ok">{sale.name} · −{sale.percent}%</span>}
         </div>
+        {product.preorder && (
+          <p className="mt-3 rounded-xl border border-chalk/20 bg-chalk/[0.05] px-3 py-2.5 text-sm">
+            <span className="font-semibold">{t('pre.badge')}</span>
+            {product.preorder.note ? ` · ${product.preorder.note}` : ''}
+            <span className="mt-0.5 block text-xs text-steel">{t('pre.hint')}</span>
+          </p>
+        )}
         {offerNotes.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {offerNotes.map((n) => (

@@ -48,6 +48,8 @@ export interface ProductCard {
   images: ProductImage[];
   /** owner added proof photos (box, tags, receipt) */
   original?: boolean;
+  /** can be ordered now, arrives later */
+  preorder?: { note: string | null } | null;
   rating?: { average: number; count: number } | null;
 }
 
@@ -221,6 +223,10 @@ export interface Order {
   discounts?: { kind: 'bundle' | 'promo' | 'referral' | 'credit'; label: string; amount: number; code?: string }[];
   giftNote?: string | null;
   creditUsed?: number;
+  /** customer only, while on the way: the code they give the driver */
+  deliveryCode?: string | null;
+  isPreorder?: boolean;
+  driverId?: string | null;
   deliveryFee: number | null;
   total: number;
   amountDue: number;

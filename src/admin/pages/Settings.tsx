@@ -28,6 +28,7 @@ import { ApiError } from '../../lib/api';
 import { birr, cn } from '../../lib/format';
 import type { StoreSettings } from '../../lib/types';
 import { adminApi } from '../ui';
+import { DriversSection } from './Drivers';
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -476,6 +477,7 @@ function DeliveryTab({ data }: { data: SettingsResponse }) {
           />
         ))}
       </Group>
+      <DriversSection botUsername={data.telegram.botUsername} />
       {editing && <DeliverySheet option={editing} onClose={() => setEditing(null)} onSave={saveOne} saving={save.isPending} />}
     </div>
   );

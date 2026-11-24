@@ -249,7 +249,7 @@ function LookSheet({ look, onClose }: { look: Look; onClose: () => void }) {
     for (const p of look.products) {
       const v = p.variants.find((x) => x.size === chosen[p.id] && x.available > 0);
       if (!v) continue;
-      add({ variantId: v.id, productId: p.id, slug: p.slug, categorySlug: p.category.slug, name: p.nameEn, image: p.images[0]?.urls.sm ?? null, size: v.size, color: v.color, price: v.price, max: v.available });
+      add({ variantId: v.id, productId: p.id, slug: p.slug, categorySlug: p.category.slug, preorder: Boolean(p.preorder), name: p.nameEn, image: p.images[0]?.urls.sm ?? null, size: v.size, color: v.color, price: v.price, max: v.available });
     }
     haptic.success();
     toast.ok(t('look.added'));

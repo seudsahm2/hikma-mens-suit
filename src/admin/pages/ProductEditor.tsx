@@ -8,6 +8,7 @@ import { ApiError } from '../../lib/api';
 import { cn, sortSizes } from '../../lib/format';
 import type { Category } from '../../lib/types';
 import type { AdminProduct } from '../types';
+import { suggestAmharicDescription, suggestAmharicName } from '../../lib/amharic';
 import { adminApi, Card, Toggle } from '../ui';
 
 const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
@@ -41,6 +42,8 @@ interface Form {
   notesHeart: string;
   notesBase: string;
   tikTokUrl: string;
+  preorder: boolean;
+  preorderNote: string;
 }
 
 const empty: Form = {
@@ -67,6 +70,8 @@ const empty: Form = {
   notesHeart: '',
   notesBase: '',
   tikTokUrl: '',
+  preorder: false,
+  preorderNote: '',
 };
 
 function toForm(p: AdminProduct): Form {
@@ -94,6 +99,8 @@ function toForm(p: AdminProduct): Form {
     notesHeart: p.notesHeart.join(', '),
     notesBase: p.notesBase.join(', '),
     tikTokUrl: p.tikTokUrl ?? '',
+    preorder: p.preorder ?? false,
+    preorderNote: p.preorderNote ?? '',
   };
 }
 
@@ -123,6 +130,8 @@ function toPayload(f: Form, status: Status) {
     notesHeart: list(f.notesHeart),
     notesBase: list(f.notesBase),
     tikTokUrl: f.tikTokUrl || null,
+    preorder: f.preorder,
+    preorderNote: f.preorder ? f.preorderNote || null : null,
   };
 }
 
@@ -832,7 +841,7 @@ export default function ProductEditor() {
     { ok: photoCount > 0, label: 'Photo' },
     { ok: form.nameEn.trim().length >= 2, label: 'Name' },
     { ok: price > 0, label: 'Price' },
-    { ok: total > 0, label: sized ? 'Size & quantity' : 'Quantity' },
+    { ok: total > 0 || form.preorder, label: sized ? 'Size & quantity' : 'Quantity' },
   ];
   const missing = checks.filter((c) => !c.ok);
   const canSave = form.nameEn.trim().length >= 2 && Boolean(form.categoryId);
@@ -998,6 +1007,25 @@ export default function ProductEditor() {
         missing={tried && total === 0}
       />
 
+      {/* Pre-order: sell before it arrives */}
+      <Card>
+        <Toggle
+          checked={form.preorder}
+          onChange={(v) => set('preorder', v)}
+          label="Pre-order"
+          hint="Sell before it arrives — customers pay the deposit now (stock isn’t needed). Turn off when it arrives and add the stock."
+        />
+        {form.preorder && (
+          <Input
+            name="preorderNote"
+            label="When does it arrive?"
+            placeholder="e.g. Arrives from Turkey on 10 Dec"
+            value={form.preorderNote}
+            onChange={(e) => set('preorderNote', e.target.value.slice(0, 80))}
+          />
+        )}
+      </Card>
+
       {/* 4 · Trust: TikTok video + "Original" proof */}
       <Card title="Video & proof">
         <Input
@@ -1041,7 +1069,24 @@ export default function ProductEditor() {
                 hint={margin !== null ? `Margin ${margin}%` : 'For profit reports. Customers never see it.'}
               />
               <Input name="brand" label="Brand" placeholder="Skechers, Ibraq…" value={form.brandName} onChange={(e) => set('brandName', e.target.value)} />
-              <Input name="nameAm" label="Name in Amharic" value={form.nameAm} onChange={(e) => set('nameAm', e.target.value)} />
+              <div>
+                <Input name="nameAm" label="Name in Amharic" value={form.nameAm} onChange={(e) => set('nameAm', e.target.value)} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((f) => ({
+                      ...f,
+                      nameAm: f.nameAm || suggestAmharicName(f.nameEn),
+                      descriptionAm: f.descriptionAm || suggestAmharicDescription({ nameEn: f.nameEn, material: f.material, fit: f.fit, origin: f.origin }),
+                    }));
+                    toast.ok('Amharic suggested — check and edit it');
+                  }}
+                  disabled={form.nameEn.trim().length < 2}
+                  className="mt-1.5 text-xs text-camel underline underline-offset-2 disabled:opacity-40"
+                >
+                  ✨ Suggest Amharic name & description
+                </button>
+              </div>
               <Input name="origin" label="Made in" placeholder="Turkey" value={form.origin} onChange={(e) => set('origin', e.target.value)} />
               {!fragrance && <Input name="material" label="Fabric" placeholder="100% cotton" value={form.material} onChange={(e) => set('material', e.target.value)} />}
               {!fragrance && <Input name="fit" label="Fit" placeholder="Slim / Regular" value={form.fit} onChange={(e) => set('fit', e.target.value)} />}
