@@ -197,6 +197,7 @@ export default function ProductPage() {
       variantId: v.id,
       productId: product.id,
       slug: product.slug,
+      categorySlug: product.category.slug,
       name: product.nameEn,
       image: image?.urls.sm ?? null,
       size: v.size,

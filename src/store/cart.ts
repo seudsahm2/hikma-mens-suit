@@ -5,6 +5,8 @@ export interface CartLine {
   variantId: string;
   productId: string;
   slug: string;
+  /** for showing running sales in the bag (older lines may not have it) */
+  categorySlug?: string;
   name: string;
   image: string | null;
   size: string;

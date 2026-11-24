@@ -249,7 +249,7 @@ function LookSheet({ look, onClose }: { look: Look; onClose: () => void }) {
     for (const p of look.products) {
       const v = p.variants.find((x) => x.size === chosen[p.id] && x.available > 0);
       if (!v) continue;
-      add({ variantId: v.id, productId: p.id, slug: p.slug, name: p.nameEn, image: p.images[0]?.urls.sm ?? null, size: v.size, color: v.color, price: v.price, max: v.available });
+      add({ variantId: v.id, productId: p.id, slug: p.slug, categorySlug: p.category.slug, name: p.nameEn, image: p.images[0]?.urls.sm ?? null, size: v.size, color: v.color, price: v.price, max: v.available });
     }
     haptic.success();
     toast.ok(t('look.added'));
@@ -442,6 +442,17 @@ export function useSalePercent(categorySlug: string | undefined) {
   return best ? { percent: best.value, name: best.name } : null;
 }
 export const salePrice = (price: number, percent: number) => price - Math.round((price * percent) / 100);
+
+/** Sale percent per category for many lines at once (bag). Unknown category → only shop-wide sales. */
+export function useSaleFor() {
+  const { data } = useCampaigns();
+  return (categorySlug?: string) => {
+    const best = (data ?? [])
+      .filter((c) => c.type === 'PERCENT' && c.minSubtotal === 0 && (!c.categorySlug || c.categorySlug === categorySlug))
+      .sort((a, b) => b.value - a.value)[0];
+    return best ? best.value : 0;
+  };
+}
 
 /** Offers with a condition (minimum order, fixed amount, free gift) — shown as a short note. */
 export function useOfferNotes(categorySlug: string | undefined) {

@@ -6,7 +6,8 @@ import { useT } from '../lib/i18n';
 import { birr } from '../lib/format';
 import { haptic } from '../lib/telegram';
 import { cartSubtotal, useCart } from '../store/cart';
-import { DiscountRows, useQuote } from '../components/checkout/Offers';
+import { DiscountRows, salePrice, useQuote, useSaleFor } from '../components/checkout/Offers';
+import { Sparkles } from 'lucide-react';
 
 export default function Bag() {
   const { t } = useT();
@@ -14,8 +15,14 @@ export default function Bag() {
   const { lines, setQty, remove } = useCart();
   const subtotal = cartSubtotal(lines);
   // Looks, running sales and a friend's invite — priced by the server, exactly as checkout will charge
-  const { data: priced } = useQuote(lines, null, false);
-  const total = priced?.itemsTotal ?? subtotal;
+  const quote = useQuote(lines, null, false);
+  const priced = quote.data;
+  const saleFor = useSaleFor();
+  // Until the server confirms, never present the full price as the final total
+  const confirming = !priced && quote.isFetching;
+  const estimate = lines.reduce((n, l) => n + salePrice(l.price, saleFor(l.categorySlug)) * l.quantity, 0);
+  const total = priced?.itemsTotal ?? estimate;
+  const saved = priced ? priced.discountTotal : subtotal - estimate;
 
   if (!lines.length) {
     return (
@@ -33,6 +40,11 @@ export default function Bag() {
   return (
     <div className="mx-auto max-w-3xl px-4 pt-6 md:pt-10">
       <h1 className="display text-[2rem]">{t('bag.title')}</h1>
+      {saved > 0 && (
+        <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-ok/15 px-3.5 py-1.5 text-sm font-medium text-ok">
+          <Sparkles className="size-4" /> {t('promo.saved', { n: birr(saved) })}
+        </p>
+      )}
       <ul className="mt-6 divide-y divide-seam border-y border-seam">
         {lines.map((l) => (
           <li key={l.variantId} className="flex gap-4 py-4">
@@ -80,7 +92,10 @@ export default function Bag() {
                     <Plus className="size-3.5" />
                   </button>
                 </div>
-                <Price value={l.price * l.quantity} className="text-sm" />
+                {(() => {
+                  const pct = saleFor(l.categorySlug);
+                  return <Price value={salePrice(l.price, pct) * l.quantity} compareAt={pct ? l.price * l.quantity : null} className="text-sm" />;
+                })()}
               </div>
             </div>
           </li>
@@ -89,8 +104,16 @@ export default function Bag() {
       <div className="mt-6 space-y-2 text-sm">
         <div className="flex items-baseline justify-between">
           <span className="text-steel">{t('bag.subtotal')}</span>
-          <Price value={subtotal} className={priced?.discountTotal ? 'text-steel line-through decoration-1' : 'text-lg'} />
+          <Price value={subtotal} className={saved > 0 ? 'text-steel line-through decoration-1' : 'text-lg'} />
         </div>
+        {confirming && (
+          <div className="flex items-baseline justify-between text-steel">
+            <span className="inline-flex items-center gap-2">
+              <span className="size-3 animate-spin rounded-full border-2 border-camel border-t-transparent" /> {t('bag.applying')}
+            </span>
+            {estimate < subtotal && <Price value={estimate} className="text-lg text-chalk" />}
+          </div>
+        )}
         {priced && priced.discountTotal > 0 && (
           <>
             <DiscountRows discounts={priced.discounts} giftNote={priced.giftNote} />
@@ -107,7 +130,7 @@ export default function Bag() {
       </div>
       <p className="mt-1 text-right text-xs text-steel">{t('product.deliveryText')}</p>
 
-      <PrimaryAction label={`${t('bag.continue')} · ${birr(total)}`} onClick={() => navigate('/checkout')} />
+      <PrimaryAction label={confirming && estimate === subtotal ? t('bag.continue') : `${t('bag.continue')} · ${birr(total)}`} onClick={() => navigate('/checkout')} />
     </div>
   );
 }
