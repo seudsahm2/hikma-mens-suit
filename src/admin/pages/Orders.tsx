@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronRight, Search } from 'lucide-react';
 import { Button, Empty, ErrorState, PageLoader } from '../../components/ui';
+import { toast } from '../../components/ui/toast';
+import { ApiError } from '../../lib/api';
 import { birr, formatDateTime } from '../../lib/format';
-import type { Order } from '../../lib/types';
+import type { Order, OrderStatus } from '../../lib/types';
 import { adminApi, PageHeader, PaymentBadge, StatusBadge, Tabs } from '../ui';
 
 type Tab = 'open' | 'review' | 'all' | 'done' | 'cancelled';
@@ -23,6 +25,7 @@ export default function Orders() {
   const [q, setQ] = useState('');
   const [debounced, setDebounced] = useState('');
   const [page, setPage] = useState(1);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(q.trim()), 300);
@@ -72,47 +75,64 @@ export default function Orders() {
       ) : (
         <>
           <div className={isFetching ? 'opacity-70 transition-opacity' : ''}>
-            {/* Mobile cards */}
+            {/* Mobile cards — the whole card opens the order; the quick action does the next step */}
             <ul className="space-y-2 md:hidden">
               {data.orders.map((o) => (
-                <li key={o.id}>
-                  <Link to={`/admin/orders/${o.id}`} className="block rounded-xl border border-seam bg-wool p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-sm">{o.orderNumber}</span>
-                      <StatusBadge status={o.status} />
-                    </div>
-                    <div className="mt-2 flex items-center justify-between text-sm">
-                      <span className="truncate">{o.customerName}</span>
-                      <span className="font-mono">{birr(o.total)}</span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between">
-                      <PaymentBadge status={o.paymentStatus} />
-                      <span className="text-xs text-steel">{formatDateTime(o.createdAt)}</span>
-                    </div>
-                  </Link>
+                <li
+                  key={o.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(`/admin/orders/${o.id}`)}
+                  onKeyDown={(e) => e.key === 'Enter' && navigate(`/admin/orders/${o.id}`)}
+                  className="cursor-pointer rounded-xl border border-seam bg-wool p-4 transition-colors active:bg-wool-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-sm">{o.orderNumber}</span>
+                    <StatusBadge status={o.status} />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="truncate">{o.customerName}</span>
+                    <span className="font-mono">{birr(o.total)}</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between">
+                    <PaymentBadge status={o.paymentStatus} />
+                    <span className="text-xs text-steel">{formatDateTime(o.createdAt)}</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-seam/70 pt-3">
+                    <QuickAction order={o} />
+                    <span className="inline-flex items-center gap-1 text-xs text-steel">
+                      Open <ChevronRight className="size-3.5" />
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
-            {/* Desktop table */}
+            {/* Desktop table — the whole row opens the order */}
             <table className="hidden w-full text-sm md:table">
               <thead>
                 <tr className="border-b border-seam text-left text-xs text-steel">
                   <th className="py-3 font-normal">Order</th>
                   <th className="font-normal">Customer</th>
                   <th className="font-normal">Items</th>
-                  <th className="font-normal">Delivery</th>
                   <th className="font-normal">Payment</th>
                   <th className="font-normal">Status</th>
                   <th className="text-right font-normal">Total</th>
+                  <th className="w-[1%] font-normal">
+                    <span className="sr-only">Next step</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {data.orders.map((o) => (
-                  <tr key={o.id} className="border-b border-seam/60 hover:bg-wool">
-                    <td className="py-3">
-                      <Link to={`/admin/orders/${o.id}`} className="font-mono hover:text-camel">
-                        {o.orderNumber}
-                      </Link>
+                  <tr
+                    key={o.id}
+                    tabIndex={0}
+                    onClick={() => navigate(`/admin/orders/${o.id}`)}
+                    onKeyDown={(e) => e.key === 'Enter' && navigate(`/admin/orders/${o.id}`)}
+                    className="group cursor-pointer border-b border-seam/60 transition-colors hover:bg-wool focus-visible:bg-wool focus-visible:outline-none"
+                  >
+                    <td className="py-3 pl-2">
+                      <span className="font-mono group-hover:text-camel">{o.orderNumber}</span>
                       <div className="text-xs text-steel">{formatDateTime(o.createdAt)}</div>
                     </td>
                     <td>
@@ -133,15 +153,21 @@ export default function Orders() {
                         <span className="font-mono text-xs text-steel">× {o.items.reduce((n, i) => n + i.quantity, 0)}</span>
                       </div>
                     </td>
-                    <td className="text-steel">{o.delivery.label}</td>
                     <td>
                       <PaymentBadge status={o.paymentStatus} />
                       <div className="text-xs text-steel">{o.payment.label}</div>
                     </td>
                     <td>
                       <StatusBadge status={o.status} />
+                      <div className="mt-0.5 text-xs text-steel">{o.delivery.label}</div>
                     </td>
                     <td className="text-right font-mono">{birr(o.total)}</td>
+                    <td className="pl-4 pr-2">
+                      <div className="flex items-center justify-end gap-2">
+                        <QuickAction order={o} />
+                        <ChevronRight className="size-4 text-steel transition-transform group-hover:translate-x-0.5 group-hover:text-chalk" />
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -161,5 +187,50 @@ export default function Orders() {
         </>
       )}
     </div>
+  );
+}
+
+/** The single next step for an order, right in the list. Everything else is on the order page. */
+function nextStep(o: Order): { label: string; run: () => Promise<unknown> } | null {
+  if (o.status === 'CANCELLED' || o.status === 'DELIVERED' || o.status === 'PICKED_UP') return null;
+  const status = (s: OrderStatus) => () => adminApi(`/orders/${o.id}/status`, { method: 'PATCH', body: { status: s } });
+  if (o.paymentStatus === 'SUBMITTED') {
+    return { label: 'Confirm payment', run: () => adminApi(`/orders/${o.id}/payment`, { method: 'PATCH', body: { approve: true } }) };
+  }
+  const paidOrCash = o.paymentStatus === 'PAID' || o.paymentStatus === 'PARTIAL' || o.payment.methodId === 'cash';
+  const pickup = o.delivery.optionId === 'pickup';
+  if (o.status === 'PENDING') return paidOrCash ? { label: 'Confirm', run: status('CONFIRMED') } : null;
+  if (o.status === 'CONFIRMED') return { label: 'Packing', run: status('PACKING') };
+  if (o.status === 'PACKING') return pickup ? { label: 'Picked up', run: status('PICKED_UP') } : { label: 'On the way', run: status('OUT_FOR_DELIVERY') };
+  if (o.status === 'OUT_FOR_DELIVERY') return { label: 'Delivered', run: status('DELIVERED') };
+  return null;
+}
+
+function QuickAction({ order }: { order: Order }) {
+  const qc = useQueryClient();
+  const step = nextStep(order);
+  const action = useMutation({
+    mutationFn: () => step!.run(),
+    onSuccess: () => {
+      toast.ok(`${order.orderNumber}: ${step!.label.toLowerCase()} ✓`);
+      void qc.invalidateQueries({ queryKey: ['admin'] });
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'Failed'),
+  });
+  if (!step) return <span />;
+  return (
+    <Button
+      size="sm"
+      variant={order.paymentStatus === 'SUBMITTED' ? 'accent' : 'primary'}
+      loading={action.isPending}
+      onClick={(e) => {
+        e.stopPropagation(); // don't open the order
+        action.mutate();
+      }}
+      onKeyDown={(e) => e.stopPropagation()}
+      className="whitespace-nowrap"
+    >
+      {step.label}
+    </Button>
   );
 }
