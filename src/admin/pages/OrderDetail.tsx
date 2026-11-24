@@ -9,6 +9,7 @@ import { birr, cn, formatDateTime } from '../../lib/format';
 import type { Order, OrderStatus } from '../../lib/types';
 import { adminApi, Card, PaymentBadge, StatusBadge, statusLabel } from '../ui';
 import { DriverCard } from './Drivers';
+import { ConfirmDelivered } from './ConfirmDelivered';
 
 const NEXT: Record<OrderStatus, OrderStatus[]> = {
   PENDING: ['CONFIRMED', 'PACKING'],
@@ -26,6 +27,7 @@ export default function OrderDetail() {
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
+  const [confirmDelivered, setConfirmDelivered] = useState(false);
 
   const { data: order, isLoading, error } = useQuery({
     queryKey: ['admin', 'order', id],
@@ -255,7 +257,19 @@ export default function OrderDetail() {
             <Card title="Update status">
               <div className="flex flex-wrap gap-2">
                 {next.map((s) => (
-                  <Button key={s} variant="primary" size="sm" loading={status.isPending && status.variables === s} onClick={() => status.mutate(s)}>
+                  <Button
+                    key={s}
+                    variant="primary"
+                    size="sm"
+                    loading={status.isPending && status.variables === s}
+                    onClick={() =>
+                      s === 'DELIVERED'
+                        ? setConfirmDelivered(true) // needs the customer's code (or a written override)
+                        : s === 'PICKED_UP'
+                          ? window.confirm(`Has the customer picked up ${order.orderNumber}?`) && status.mutate(s)
+                          : status.mutate(s)
+                    }
+                  >
                     {statusLabel(s)}
                   </Button>
                 ))}
@@ -292,6 +306,7 @@ export default function OrderDetail() {
           </Card>
         </div>
       </div>
+      <ConfirmDelivered order={order} open={confirmDelivered} onClose={() => setConfirmDelivered(false)} onDone={(o) => onDone(o, 'Saved')} />
     </div>
   );
 }

@@ -201,8 +201,11 @@ function nextStep(o: Order): { label: string; run: () => Promise<unknown> } | nu
   const pickup = o.delivery.optionId === 'pickup';
   if (o.status === 'PENDING') return paidOrCash ? { label: 'Confirm', run: status('CONFIRMED') } : null;
   if (o.status === 'CONFIRMED') return { label: 'Packing', run: status('PACKING') };
-  if (o.status === 'PACKING') return pickup ? { label: 'Picked up', run: status('PICKED_UP') } : { label: 'On the way', run: status('OUT_FOR_DELIVERY') };
-  if (o.status === 'OUT_FOR_DELIVERY') return { label: 'Delivered', run: status('DELIVERED') };
+  if (o.status === 'PACKING')
+    return pickup
+      ? { label: 'Picked up', run: () => (window.confirm(`Has the customer picked up ${o.orderNumber}?`) ? status('PICKED_UP')() : Promise.reject(new Error('cancelled'))) }
+      : { label: 'On the way', run: status('OUT_FOR_DELIVERY') };
+  // Delivered is never a one-click action: it's confirmed with the customer's code (driver or order page)
   return null;
 }
 
@@ -215,7 +218,7 @@ function QuickAction({ order }: { order: Order }) {
       toast.ok(`${order.orderNumber}: ${step!.label.toLowerCase()} ✓`);
       void qc.invalidateQueries({ queryKey: ['admin'] });
     },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'Failed'),
+    onError: (err) => err instanceof Error && err.message === 'cancelled' ? undefined : toast.error(err instanceof ApiError ? err.message : 'Failed'),
   });
   if (!step) return <span />;
   return (
