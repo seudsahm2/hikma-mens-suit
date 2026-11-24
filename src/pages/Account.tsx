@@ -11,7 +11,7 @@ import { PageLoader } from '../components/ui';
 import { toast } from '../components/ui/toast';
 import { useLang, useT } from '../lib/i18n';
 import { cn } from '../lib/format';
-import { tg } from '../lib/telegram';
+import { isMiniApp, tg } from '../lib/telegram';
 import { useCustomer } from '../store/auth';
 import { useTheme } from '../store/theme';
 import { Avatar } from '../components/layout/Avatar';
@@ -172,12 +172,17 @@ export default function Account() {
         <Preferences />
       </div>
 
+      {/* Inside Telegram the account IS the Telegram account (it signs straight back in), so no sign-out there */}
+      {isMiniApp ? (
+        <p className="mt-8 text-center text-xs text-steel">{t('acc.viaTelegramApp')}</p>
+      ) : (
       <button
         onClick={leave}
         className="mt-8 flex w-full items-center justify-center gap-2 rounded-full border border-seam py-3.5 text-sm text-danger transition-colors hover:border-danger/60"
       >
         <LogOut className="size-4" /> {t('acc.signOut')}
       </button>
+      )}
     </div>
   );
 }

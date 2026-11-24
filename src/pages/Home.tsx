@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { motion } from 'motion/react';
 import { ArrowRight, ArrowUpRight, MapPin, Phone, Send } from 'lucide-react';
@@ -6,27 +7,74 @@ import { ProductGrid, ProductRail } from '../components/product/ProductCard';
 import { Button, buttonClass } from '../components/ui';
 import { useCategories, useConfig, useProducts } from '../hooks/queries';
 import { useT } from '../lib/i18n';
+import { cn } from '../lib/format';
 import { openExternal } from '../lib/telegram';
 import type { StoreSettings } from '../lib/types';
 import { useDataSaver } from '../store/dataSaver';
 
+/**
+ * Hero video that also works inside Telegram's in-app browsers:
+ *  - mute is set on the element itself (React's `muted` prop isn't enough for iPhone/Mac web views,
+ *    which then refuse to autoplay), and playback is started from code
+ *  - the cover photo (or the logo) stays underneath and the video fades in only once it really plays,
+ *    so a blocked or slow video never leaves an empty black box
+ */
 function HeroMedia({ store, className }: { store: StoreSettings; className: string }) {
   const saver = useDataSaver(); // slow connection: the cover photo instead of the video
-  return store.heroVideoUrl && !(saver && store.heroImageUrl) ? (
-    <video
-      className={className}
-      src={store.heroVideoUrl}
-      poster={store.heroImageUrl ?? undefined}
-      autoPlay
-      muted
-      loop
-      playsInline
-      preload="metadata"
-      aria-hidden
-    />
-  ) : store.heroImageUrl ? (
-    <img className={className} src={store.heroImageUrl} alt="" fetchPriority="high" />
-  ) : null;
+  const ref = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const useVideo = Boolean(store.heroVideoUrl) && !(saver && store.heroImageUrl) && !failed;
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || !useVideo) return;
+    v.muted = true;
+    v.defaultMuted = true;
+    v.setAttribute('muted', '');
+    v.setAttribute('playsinline', '');
+    v.setAttribute('webkit-playsinline', '');
+    const tryPlay = () => v.play().catch(() => undefined);
+    void tryPlay();
+    // Some web views only allow playback after the first touch / when the tab is visible again
+    const onTouch = () => void tryPlay();
+    const onVisible = () => document.visibilityState === 'visible' && void tryPlay();
+    window.addEventListener('touchstart', onTouch, { once: true, passive: true });
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('touchstart', onTouch);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [useVideo, store.heroVideoUrl]);
+
+  return (
+    <div className={cn('overflow-hidden', className)}>
+      {store.heroImageUrl ? (
+        <img className="absolute inset-0 size-full object-cover" src={store.heroImageUrl} alt="" fetchPriority="high" />
+      ) : (
+        <div className="absolute inset-0 grid place-items-center bg-ink">
+          <Mark className="w-3/4 max-w-[420px] opacity-25" fill="transparent" stroke="#B98B57" />
+        </div>
+      )}
+      {useVideo && (
+        <video
+          ref={ref}
+          className={cn('absolute inset-0 size-full object-cover transition-opacity duration-700', playing ? 'opacity-100' : 'opacity-0')}
+          src={store.heroVideoUrl!}
+          poster={store.heroImageUrl ?? undefined}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          disablePictureInPicture
+          onPlaying={() => setPlaying(true)}
+          onError={() => setFailed(true)}
+          aria-hidden
+        />
+      )}
+    </div>
+  );
 }
 
 /**
@@ -51,7 +99,7 @@ function Hero({ store }: { store?: StoreSettings }) {
   return (
     <section className="relative isolate overflow-hidden">
       {/* Phone layout */}
-      <div className="stay-dark relative flex min-h-[80svh] flex-col justify-end bg-ink text-chalk md:hidden">
+      <div className="stay-dark relative isolate flex min-h-[80svh] flex-col justify-end bg-ink text-chalk md:hidden">
         {store && hasMedia ? (
           <HeroMedia store={store} className="absolute inset-0 -z-10 size-full object-cover" />
         ) : (
@@ -71,7 +119,7 @@ function Hero({ store }: { store?: StoreSettings }) {
           <Mark className="absolute -left-10 top-1/2 w-[120%] max-w-none -translate-y-1/2 opacity-[0.06]" fill="transparent" stroke="#B98B57" />
           {store && hasMedia ? (
             <div className="relative aspect-[9/16] h-[72svh] max-h-[760px] overflow-hidden rounded-[28px] border border-seam shadow-[0_40px_120px_-40px_rgba(185,139,87,0.45)]">
-              <HeroMedia store={store} className="size-full object-cover" />
+              <HeroMedia store={store} className="relative size-full" />
               <div className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-inset ring-white/10" />
             </div>
           ) : (

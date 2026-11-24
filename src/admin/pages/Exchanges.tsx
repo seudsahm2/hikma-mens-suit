@@ -29,7 +29,7 @@ const STATUS = {
 };
 
 /** Size exchanges asked for by customers (within the exchange window after receiving an order). */
-export default function Exchanges() {
+export default function Exchanges({ embedded }: { embedded?: boolean } = {}) {
   const qc = useQueryClient();
   const [tab, setTab] = useState<'requested' | 'approved' | 'all'>('requested');
   const q = useQuery({
@@ -42,7 +42,7 @@ export default function Exchanges() {
     onSuccess: () => {
       toast.ok('Saved — the customer gets a Telegram message');
       void qc.invalidateQueries({ queryKey: ['admin', 'exchanges'] });
-      void qc.invalidateQueries({ queryKey: ['admin', 'exchange-badge'] });
+      void qc.invalidateQueries({ queryKey: ['admin', 'care-badge'] });
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'Failed'),
   });
@@ -53,8 +53,8 @@ export default function Exchanges() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <PageHeader title="Exchanges" kicker="Wrong size? Customers ask here" />
+    <div className={embedded ? '' : 'mx-auto max-w-3xl'}>
+      {!embedded && <PageHeader title="Exchanges" kicker="Wrong size? Customers ask here" />}
       <Tabs
         value={tab}
         onChange={setTab}

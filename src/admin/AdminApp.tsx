@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, ExternalLink, LogOut, ReceiptText, RefreshCw, Settings, Shirt, Star, Store, Tag, Users, UserCog } from 'lucide-react';
+import { BarChart3, ExternalLink, LifeBuoy, LogOut, ReceiptText, Settings, Shirt, Star, Store, Tag, Users, UserCog } from 'lucide-react';
 import { Wordmark } from '../components/brand/Mark';
 import { Button, Input, PageLoader } from '../components/ui';
 import { api, ApiError } from '../lib/api';
@@ -19,7 +19,7 @@ const Customers = lazy(() => import('./pages/Customers'));
 const Counter = lazy(() => import('./pages/Counter'));
 const ReviewsPage = lazy(() => import('./pages/Reviews'));
 const PromotionsPage = lazy(() => import('./pages/Promotions'));
-const ExchangesPage = lazy(() => import('./pages/Exchanges'));
+const CarePage = lazy(() => import('./pages/Care'));
 const Staff = lazy(() => import('./pages/Staff'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
 
@@ -76,16 +76,23 @@ function Shell() {
     queryFn: () => adminApi<{ needsReview: number }>('/orders', { query: { limit: 1 } }),
     refetchInterval: 60_000,
   });
-  const exchanges = useQuery({
-    queryKey: ['admin', 'exchange-badge'],
-    queryFn: () => adminApi<{ open: number }>('/exchanges', { query: { status: 'requested' } }).then((r) => r.open),
-    refetchInterval: 120_000,
+  // Customer care badge: open questions waiting for staff + exchange requests
+  const care = useQuery({
+    queryKey: ['admin', 'care-badge'],
+    queryFn: async () => {
+      const [help, ex] = await Promise.all([
+        adminApi<{ requests: { lastFrom: string }[] }>('/support', { query: { status: 'open' } }),
+        adminApi<{ open: number }>('/exchanges', { query: { status: 'requested' } }),
+      ]);
+      return help.requests.filter((r) => r.lastFrom === 'customer').length + ex.open;
+    },
+    refetchInterval: 60_000,
   });
 
   const links = [
     { to: '/admin', label: 'Overview', icon: BarChart3, end: true },
     { to: '/admin/orders', label: 'Orders', icon: ReceiptText, badge: data?.needsReview },
-    { to: '/admin/exchanges', label: 'Exchanges', icon: RefreshCw, badge: exchanges.data || undefined },
+    { to: '/admin/care', label: 'Customer care', icon: LifeBuoy, badge: care.data || undefined },
     { to: '/admin/products', label: 'Products', icon: Shirt },
     { to: '/admin/counter', label: 'Shop counter', icon: Store },
     { to: '/admin/customers', label: 'Customers', icon: Users },
@@ -189,7 +196,8 @@ function Shell() {
             <Route path="customers" element={<Customers />} />
             <Route path="counter" element={<Counter />} />
             <Route path="reviews" element={<ReviewsPage />} />
-            <Route path="exchanges" element={<ExchangesPage />} />
+            <Route path="care" element={<CarePage />} />
+            <Route path="exchanges" element={<Navigate to="/admin/care?tab=exchanges" replace />} />
             {isOwner && <Route path="promotions" element={<PromotionsPage />} />}
             {isOwner && <Route path="staff" element={<Staff />} />}
             {isOwner && <Route path="settings" element={<SettingsPage />} />}

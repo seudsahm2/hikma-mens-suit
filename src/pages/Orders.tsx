@@ -9,6 +9,7 @@ import { NewsToggle } from '../components/layout/NewsToggle';
 import { RatePurchases } from '../components/product/Trust';
 import { DiscountRows, RewardsCard } from '../components/checkout/Offers';
 import { ExchangeBlock, ReceiptButton } from '../components/after/After';
+import { HelpBlock } from '../components/after/Help';
 import { Button, Empty, ErrorState, Input, PageLoader, Price, buttonClass } from '../components/ui';
 import { toast } from '../components/ui/toast';
 import { useConfig, useMyOrders, useOrder } from '../hooks/queries';
@@ -202,6 +203,7 @@ export function OrderPage() {
 
       <RatePurchases orderNumber={order.orderNumber} autoOpen={params.get('review') === '1'} className="mt-6" />
       <ExchangeBlock order={order} />
+      <HelpBlock order={order} store={config?.store} autoOpen={params.get('help') === '1'} />
 
       <div className="mt-8">
         <Timeline order={order} />
