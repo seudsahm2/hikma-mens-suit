@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { motion } from 'motion/react';
 import { Home, LayoutGrid, ReceiptText, Search, ShoppingBag } from 'lucide-react';
 import { Wordmark } from '../brand/Mark';
 import { useTelegramBackButton } from './PrimaryAction';
@@ -29,9 +30,15 @@ function BagLink({ className }: { className?: string }) {
     <Link to="/bag" className={cn('relative grid size-10 place-items-center rounded-full hover:bg-wool-2', className)} aria-label={t('nav.bag')}>
       <ShoppingBag className="size-[1.35rem]" strokeWidth={1.6} />
       {count > 0 && (
-        <span className="absolute right-0.5 top-0.5 grid min-w-[1.1rem] place-items-center rounded-full bg-camel px-1 font-mono text-[0.6rem] font-medium leading-[1.1rem] text-ink">
+        <motion.span
+          key={count}
+          initial={{ scale: 1.7 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+          className="absolute right-0.5 top-0.5 grid min-w-[1.1rem] place-items-center rounded-full bg-camel px-1 font-mono text-[0.6rem] font-medium leading-[1.1rem] text-ink"
+        >
           {count}
-        </span>
+        </motion.span>
       )}
     </Link>
   );
@@ -112,9 +119,15 @@ function TabBar() {
                   <span className="relative">
                     <Icon className="size-[1.3rem]" strokeWidth={isActive ? 2 : 1.6} />
                     {badge ? (
-                      <span className="absolute -right-2.5 -top-1.5 grid min-w-[1rem] place-items-center rounded-full bg-camel px-1 font-mono text-[0.58rem] leading-4 text-ink">
+                      <motion.span
+                        key={badge}
+                        initial={{ scale: 1.8 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                        className="absolute -right-2.5 -top-1.5 grid min-w-[1rem] place-items-center rounded-full bg-camel px-1 font-mono text-[0.58rem] leading-4 text-ink"
+                      >
                         {badge}
-                      </span>
+                      </motion.span>
                     ) : null}
                   </span>
                   {label}

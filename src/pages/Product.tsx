@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router';
-import { motion, useAnimationControls } from 'motion/react';
-import { ChevronRight, Send, Truck } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router';
+import { AnimatePresence, motion, useAnimationControls } from 'motion/react';
+import { Check, ChevronRight, Send, Truck, X } from 'lucide-react';
 import { Gallery } from '../components/product/Gallery';
 import { ProductRail } from '../components/product/ProductCard';
 import { TapeSizePicker } from '../components/product/TapeSizePicker';
@@ -11,7 +11,7 @@ import { toast } from '../components/ui/toast';
 import { useConfig, useProduct, useProducts } from '../hooks/queries';
 import { useT } from '../lib/i18n';
 import { birr, cn, sortSizes } from '../lib/format';
-import { haptic, openExternal } from '../lib/telegram';
+import { haptic, isMiniApp, openExternal } from '../lib/telegram';
 import type { Product as P } from '../lib/types';
 import { useCart } from '../store/cart';
 
@@ -93,7 +93,17 @@ export default function ProductPage() {
   const { data: config } = useConfig();
   const sel = useSelection(product);
   const add = useCart((s) => s.add);
+  const lines = useCart((s) => s.lines);
+  const navigate = useNavigate();
+  const [added, setAdded] = useState<{ image: string | null; name: string; detail: string } | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+
+  // The "added" card hides itself after a few seconds
+  useEffect(() => {
+    if (!added) return;
+    const id = setTimeout(() => setAdded(null), 5000);
+    return () => clearTimeout(id);
+  }, [added]);
   const pickerRef = useRef<HTMLDivElement>(null);
   const shake = useAnimationControls();
 
@@ -134,8 +144,14 @@ export default function ProductPage() {
       max: v.available,
     });
     haptic.success();
-    toast.ok(t('product.added'));
+    setAdded({ image: image?.urls.sm ?? null, name, detail: [v.size, v.color].filter(Boolean).join(' · ') });
   };
+
+  // Once the chosen size is in the bag, the main button leads to the bag instead of adding again
+  const inBag = Boolean(sel.variant && lines.some((l) => l.variantId === sel.variant!.id));
+  const bagCount = lines.reduce((n, l) => n + l.quantity, 0);
+  const mainLabel = soldOut ? t('product.soldOut') : inBag ? t('product.inBag') : `${t('product.addToBag')} · ${birr(price)}`;
+  const mainAction = () => (inBag ? navigate('/bag') : addToBag());
 
   const ask = () => {
     if (!config) return;
@@ -206,11 +222,14 @@ export default function ProductPage() {
         {/* Desktop add-to-bag (mobile uses the sticky / Telegram main button) */}
         <div className="mt-6 hidden md:block">
           <button
-            onClick={addToBag}
+            onClick={mainAction}
             disabled={soldOut}
-            className="h-14 w-full rounded-full bg-camel font-semibold text-ink transition-colors hover:bg-camel-soft disabled:opacity-40"
+            className={cn(
+              'h-14 w-full rounded-full font-semibold transition-colors disabled:opacity-40',
+              inBag ? 'border border-camel text-camel hover:bg-camel/10' : 'bg-camel text-ink hover:bg-camel-soft',
+            )}
           >
-            {soldOut ? t('product.soldOut') : `${t('product.addToBag')} · ${birr(price)}`}
+            {mainLabel}
           </button>
         </div>
 
@@ -253,12 +272,45 @@ export default function ProductPage() {
       )}
 
       <div className="md:hidden">
-        <PrimaryAction
-          label={soldOut ? t('product.soldOut') : `${t('product.addToBag')} · ${birr(price)}`}
-          onClick={addToBag}
-          disabled={soldOut}
-        />
+        <PrimaryAction label={mainLabel} onClick={mainAction} disabled={soldOut} />
       </div>
+
+      {/* "Added to your bag" card: confirms the add and offers the next step */}
+      <AnimatePresence>
+        {added && (
+          <motion.div
+            role="status"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.3 }}
+            className={cn(
+              'fixed inset-x-3 z-40 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-seam bg-wool-2/95 p-3 shadow-2xl shadow-black/50 backdrop-blur md:inset-x-auto md:right-6 md:top-20 md:mx-0 md:w-96',
+              isMiniApp ? 'bottom-4' : 'bottom-[calc(140px+env(safe-area-inset-bottom))] md:bottom-auto',
+            )}
+          >
+            {added.image ? <img src={added.image} alt="" className="aspect-[4/5] w-12 rounded-md object-cover" /> : null}
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <Check className="size-4 text-camel" /> {t('product.addedTitle')}
+              </p>
+              <p className="mt-0.5 truncate text-xs text-steel">
+                {added.name}
+                {added.detail && ` · ${added.detail}`}
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/bag')}
+              className="shrink-0 rounded-full bg-camel px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-camel-soft"
+            >
+              {t('product.viewBag')} ({bagCount})
+            </button>
+            <button onClick={() => setAdded(null)} className="shrink-0 p-1 text-steel hover:text-chalk" aria-label={t('common.close')}>
+              <X className="size-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <SizeGuide product={product} open={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>

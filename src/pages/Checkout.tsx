@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, Copy, ImagePlus, LocateFixed, Phone } from 'lucide-react';
+import { Check, Copy, ImagePlus, Loader2, LocateFixed, MapPin, Phone } from 'lucide-react';
 import { PrimaryAction } from '../components/layout/PrimaryAction';
 import { TelegramLogin } from '../components/layout/TelegramLogin';
 import { Input, PageLoader, Price, Textarea } from '../components/ui';
@@ -102,6 +102,8 @@ export default function Checkout() {
   const [area, setArea] = useState('');
   const [landmark, setLandmark] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [placeLabel, setPlaceLabel] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
   const [methodId, setMethodId] = useState<string | null>(null);
   const [deposit, setDeposit] = useState(false);
   const [txRef, setTxRef] = useState('');
@@ -143,15 +145,40 @@ export default function Checkout() {
     if (p) setPhone(p);
   };
 
+  // Share GPS location, then show the place name and fill the address fields from it
   const addLocation = () => {
-    navigator.geolocation?.getCurrentPosition(
-      (pos) => {
-        setCoords({ lat: +pos.coords.latitude.toFixed(6), lng: +pos.coords.longitude.toFixed(6) });
+    if (!navigator.geolocation) return toast.error(t('checkout.locationDenied'));
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const c = { lat: +pos.coords.latitude.toFixed(6), lng: +pos.coords.longitude.toFixed(6) };
+        setCoords(c);
         haptic.success();
+        try {
+          const { place } = await api<{ place: { label: string; area: string | null; landmark: string | null } | null }>('/geo/reverse', {
+            query: { lat: c.lat, lng: c.lng },
+          });
+          if (place) {
+            setPlaceLabel(place.label);
+            if (place.area) setArea((a) => a || place.area!);
+            if (place.landmark) setLandmark((l) => l || place.landmark!);
+          }
+        } catch {
+          /* coordinates are still saved with the order */
+        } finally {
+          setLocating(false);
+        }
       },
-      () => toast.error('Location unavailable'),
-      { enableHighAccuracy: true, timeout: 10_000 },
+      (err) => {
+        setLocating(false);
+        toast.error(err.code === err.PERMISSION_DENIED ? t('checkout.locationDenied') : t('checkout.locationFailed'));
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
     );
+  };
+  const removeLocation = () => {
+    setCoords(null);
+    setPlaceLabel(null);
   };
 
   const validate = () => {
@@ -268,19 +295,39 @@ export default function Checkout() {
         </div>
         {delivery?.needsAddress && (
           <div className="mt-5 space-y-4">
+            {/* Location first: it fills the fields below */}
+            {coords ? (
+              <div className="flex items-start gap-3 rounded-xl border border-ok/40 bg-ok/[0.06] p-4">
+                <MapPin className="mt-0.5 size-5 shrink-0 text-ok" strokeWidth={1.8} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">{locating ? t('checkout.locationLooking') : (placeLabel ?? t('checkout.locationPinned'))}</p>
+                  <p className="mt-0.5 font-mono text-[0.7rem] text-steel">
+                    {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)} ·{' '}
+                    <a href={`https://maps.google.com/?q=${coords.lat},${coords.lng}`} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                      {t('checkout.viewMap')}
+                    </a>
+                  </p>
+                </div>
+                <button type="button" onClick={removeLocation} className="shrink-0 text-xs text-steel underline underline-offset-2 hover:text-chalk">
+                  {t('checkout.removeLocation')}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={addLocation}
+                disabled={locating}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-camel/60 py-3.5 text-sm text-camel transition-colors hover:bg-camel/[0.06] disabled:opacity-60"
+              >
+                {locating ? <Loader2 className="size-4 animate-spin" /> : <LocateFixed className="size-4" />}
+                {locating ? t('checkout.locationLooking') : t('checkout.addLocation')}
+              </button>
+            )}
             {delivery.id === 'regional' && (
               <Input name="city" label={t('checkout.city')} value={city} onChange={(e) => setCity(e.target.value)} error={errors.city && ' '} />
             )}
             <Input name="area" label={t('checkout.area')} value={area} onChange={(e) => setArea(e.target.value)} error={errors.area && ' '} placeholder="Bole, Kolfe, Piassa…" />
             <Input name="landmark" label={t('checkout.landmark')} value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder={t('checkout.landmarkHint')} />
-            <button
-              type="button"
-              onClick={addLocation}
-              className={cn('inline-flex items-center gap-2 text-sm', coords ? 'text-ok' : 'text-camel')}
-            >
-              {coords ? <Check className="size-4" /> : <LocateFixed className="size-4" />}
-              {coords ? t('checkout.locationAdded') : t('checkout.addLocation')}
-            </button>
           </div>
         )}
       </Section>
