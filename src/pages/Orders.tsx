@@ -7,6 +7,7 @@ import { Mark } from '../components/brand/Mark';
 import { TelegramLogin } from '../components/layout/TelegramLogin';
 import { NewsToggle } from '../components/layout/NewsToggle';
 import { RatePurchases } from '../components/product/Trust';
+import { DiscountRows, RewardsCard } from '../components/checkout/Offers';
 import { Button, Empty, ErrorState, Input, PageLoader, Price, buttonClass } from '../components/ui';
 import { toast } from '../components/ui/toast';
 import { useConfig, useMyOrders, useOrder } from '../hooks/queries';
@@ -45,6 +46,7 @@ export function OrdersPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6 md:pt-10">
       <h1 className="display text-[2rem]">{t('orders.title')}</h1>
+      <RewardsCard className="mt-6" />
       <RatePurchases className="mt-6" />
       <NewsToggle className="mt-6" />
       <ul className="mt-6 divide-y divide-seam border-y border-seam">
@@ -227,6 +229,7 @@ export function OrderPage() {
       </section>
 
       <section className="mt-6 space-y-2 text-sm">
+        {(order.discounts?.length || order.giftNote) && <DiscountRows discounts={order.discounts ?? []} giftNote={order.giftNote} />}
         <div className="flex justify-between">
           <span className="text-steel">{t('order.delivery')}</span>
           <span className="text-right">

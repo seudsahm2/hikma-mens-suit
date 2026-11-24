@@ -8,6 +8,7 @@ import { startParam, startParamToPath } from './lib/telegram';
 import { useCustomer, useStaff } from './store/auth';
 import { useCart } from './store/cart';
 import { useBagSync } from './lib/bagSync';
+import { captureInviteCode } from './components/checkout/Offers';
 import Home from './pages/Home';
 
 const Shop = lazy(() => import('./pages/Shop'));
@@ -24,6 +25,7 @@ const s = (el: React.ReactNode) => <Suspense fallback={<PageLoader />}>{el}</Sus
 
 // A Mini App opened via t.me/<bot>/shop?startapp=p_<slug> lands on that product
 const deepLink = startParamToPath(startParam);
+captureInviteCode(); // ?ref=CODE or Telegram startapp=ref_CODE → pre-fills the code at checkout
 
 const router = createBrowserRouter([
   {

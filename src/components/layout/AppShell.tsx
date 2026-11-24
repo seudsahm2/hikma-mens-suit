@@ -9,6 +9,7 @@ import { useT, useLang } from '../../lib/i18n';
 import { cn } from '../../lib/format';
 import { isMiniApp } from '../../lib/telegram';
 import { cartCount, useCart } from '../../store/cart';
+import { useCampaignBanner } from '../checkout/Offers';
 
 function LangToggle() {
   const { lang, setLang } = useLang();
@@ -83,7 +84,8 @@ function Header() {
 function Announcement() {
   const { data } = useConfig();
   const { pick } = useT();
-  const text = pick(data?.store.announcementEn, data?.store.announcementAm);
+  const campaign = useCampaignBanner(); // a running campaign (e.g. Eid offer) takes the banner
+  const text = campaign ?? pick(data?.store.announcementEn, data?.store.announcementAm);
   if (!text) return null;
   return (
     <div className="border-b border-seam/60 bg-wool px-4 py-2 text-center font-mono text-[0.68rem] uppercase tracking-[0.14em] text-camel">

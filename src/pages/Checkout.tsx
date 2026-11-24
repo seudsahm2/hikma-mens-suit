@@ -14,6 +14,7 @@ import { getLocation, haptic, isMiniApp, openLocationSettings, requestPhone } fr
 import type { Order, PaymentMethodPublic } from '../lib/types';
 import { useCustomer } from '../store/auth';
 import { cartSubtotal, useCart } from '../store/cart';
+import { CodeAndCredit, DiscountRows, forgetInviteCode, savedInviteCode, useQuote } from '../components/checkout/Offers';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -124,6 +125,12 @@ export default function Checkout() {
     if (config && !methodId) setMethodId(config.paymentMethods.find((m) => m.kind !== 'cash')?.id ?? config.paymentMethods[0]?.id ?? null);
   }, [config, methodId]);
 
+  // Discounts are priced by the server; an invite link pre-fills the code
+  const [code, setCode] = useState<string | null>(() => savedInviteCode());
+  const [useCredit, setUseCredit] = useState(false);
+  const quoteQ = useQuote(lines, code, useCredit);
+  const priced = quoteQ.data;
+
   const proofPreview = useMemo(() => (proof ? URL.createObjectURL(proof) : null), [proof]);
   useEffect(() => () => (proofPreview ? URL.revokeObjectURL(proofPreview) : undefined), [proofPreview]);
 
@@ -136,7 +143,7 @@ export default function Checkout() {
   const isCash = method?.kind === 'cash';
   const subtotal = cartSubtotal(lines);
   const fee = delivery?.fee ?? null;
-  const total = subtotal + (fee ?? 0);
+  const total = (priced?.itemsTotal ?? subtotal) + (fee ?? 0);
   const canDeposit = config.store.partialPaymentEnabled && !isCash;
   const dueNow = canDeposit && deposit ? Math.ceil((total * config.store.depositPercent) / 100) : total;
 
@@ -217,6 +224,8 @@ export default function Checkout() {
           payDeposit: canDeposit && deposit,
           note: note.trim() || undefined,
           source: isMiniApp ? 'MINI_APP' : 'WEB',
+          code: code && priced?.codeApplied ? code : undefined,
+          useCredit: useCredit && (priced?.creditUsed ?? 0) > 0,
         },
       });
       if (!isCash && (txRef.trim() || proof)) {
@@ -225,6 +234,7 @@ export default function Checkout() {
         if (proof) form.set('proof', proof);
         await api(`/orders/${order.orderNumber}/payment`, { form }).catch(() => undefined); // can be resent from the order page
       }
+      if (code && priced?.codeApplied) forgetInviteCode();
       clear();
       haptic.success();
       void qc.invalidateQueries({ queryKey: ['my-orders'] });
@@ -388,11 +398,16 @@ export default function Checkout() {
         <Textarea name="note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={500} />
       </Section>
 
+      <Section title={t('promo.code')}>
+        <CodeAndCredit code={code} onCode={setCode} useCredit={useCredit} onUseCredit={setUseCredit} quote={priced} />
+      </Section>
+
       <section className="space-y-2 border-t border-seam py-7 text-sm">
         <div className="flex justify-between">
           <span className="text-steel">{t('bag.subtotal')}</span>
           <Price value={subtotal} />
         </div>
+        {priced && <DiscountRows discounts={priced.discounts} giftNote={priced.giftNote} />}
         <div className="flex justify-between">
           <span className="text-steel">{t('checkout.delivery')}</span>
           <span className="font-mono">{fee === null ? t('checkout.byPhone') : fee === 0 ? t('common.free') : birr(fee)}</span>

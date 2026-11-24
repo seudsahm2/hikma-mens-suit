@@ -20,6 +20,7 @@ import { api, ApiError } from '../lib/api';
 import { TelegramLogin } from '../components/layout/TelegramLogin';
 import { canSuggestSize, OriginalBadge, RatingLink, Reviews, SizeHelper, VideoTile } from '../components/product/Trust';
 import { useSizes, useSizeProfile } from '../store/sizes';
+import { CompleteTheLook } from '../components/checkout/Offers';
 
 function useSelection(product?: P) {
   const colors = useMemo(() => {
@@ -368,6 +369,8 @@ export default function ProductPage() {
         </button>
       </div>
       </div>
+
+      <CompleteTheLook product={product} />
 
       <Reviews product={product} />
 

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, ExternalLink, LogOut, ReceiptText, Settings, Shirt, Star, Store, Users, UserCog } from 'lucide-react';
+import { BarChart3, ExternalLink, LogOut, ReceiptText, Settings, Shirt, Star, Store, Tag, Users, UserCog } from 'lucide-react';
 import { Wordmark } from '../components/brand/Mark';
 import { Button, Input, PageLoader } from '../components/ui';
 import { api, ApiError } from '../lib/api';
@@ -18,6 +18,7 @@ const ProductEditor = lazy(() => import('./pages/ProductEditor'));
 const Customers = lazy(() => import('./pages/Customers'));
 const Counter = lazy(() => import('./pages/Counter'));
 const ReviewsPage = lazy(() => import('./pages/Reviews'));
+const PromotionsPage = lazy(() => import('./pages/Promotions'));
 const Staff = lazy(() => import('./pages/Staff'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
 
@@ -84,6 +85,7 @@ function Shell() {
     { to: '/admin/reviews', label: 'Reviews', icon: Star },
     ...(isOwner
       ? [
+          { to: '/admin/promotions', label: 'Promotions', icon: Tag },
           { to: '/admin/staff', label: 'Admins', icon: UserCog },
           { to: '/admin/settings', label: 'Settings', icon: Settings },
         ]
@@ -180,6 +182,7 @@ function Shell() {
             <Route path="customers" element={<Customers />} />
             <Route path="counter" element={<Counter />} />
             <Route path="reviews" element={<ReviewsPage />} />
+            {isOwner && <Route path="promotions" element={<PromotionsPage />} />}
             {isOwner && <Route path="staff" element={<Staff />} />}
             {isOwner && <Route path="settings" element={<SettingsPage />} />}
             <Route path="*" element={<Navigate to="/admin" replace />} />

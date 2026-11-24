@@ -217,6 +217,10 @@ export interface Order {
     lng: number | null;
   };
   subtotal: number;
+  discountTotal?: number;
+  discounts?: { kind: 'bundle' | 'promo' | 'referral' | 'credit'; label: string; amount: number; code?: string }[];
+  giftNote?: string | null;
+  creditUsed?: number;
   deliveryFee: number | null;
   total: number;
   amountDue: number;

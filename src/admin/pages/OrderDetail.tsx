@@ -107,6 +107,21 @@ export default function OrderDetail() {
                 <dt className="text-steel">Subtotal</dt>
                 <dd className="font-mono">{birr(order.subtotal)}</dd>
               </div>
+              {order.discounts?.map((d, i) => (
+                <div key={i} className="flex justify-between text-ok">
+                  <dt>
+                    {d.label}
+                    {d.code && <span className="ml-1.5 font-mono text-xs opacity-80">{d.code}</span>}
+                  </dt>
+                  <dd className="font-mono">−{birr(d.amount)}</dd>
+                </div>
+              ))}
+              {order.giftNote && (
+                <div className="flex justify-between rounded-lg bg-camel/10 px-2 py-1.5 text-camel">
+                  <dt>🎁 Add to the parcel</dt>
+                  <dd>{order.giftNote}</dd>
+                </div>
+              )}
               <div className="flex justify-between">
                 <dt className="text-steel">Delivery</dt>
                 <dd className="font-mono">{order.deliveryFee === null ? 'by phone' : birr(order.deliveryFee)}</dd>
