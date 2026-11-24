@@ -201,6 +201,7 @@ export default function OrderDetail() {
           <Card title="Customer">
             <p className="font-medium">{order.customerName}</p>
             <p className="mt-1 font-mono text-sm text-steel">{order.customerPhone}</p>
+            {order.customerPhone && (
             <div className="mt-4 flex flex-wrap gap-2">
               <a href={`tel:${order.customerPhone}`} className="inline-flex h-9 items-center gap-2 rounded-full border border-seam px-3 text-sm hover:border-steel">
                 <Phone className="size-4" /> Call
@@ -214,6 +215,7 @@ export default function OrderDetail() {
                 <Send className="size-4" /> Telegram
               </a>
             </div>
+            )}
             <div className="mt-5 border-t border-seam pt-4 text-sm">
               <p className="label mb-2">{order.delivery.label}</p>
               {address && <p>{address}</p>}

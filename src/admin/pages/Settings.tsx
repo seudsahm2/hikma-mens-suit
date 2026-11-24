@@ -32,6 +32,9 @@ interface SettingsResponse {
     channelChatId: string | null;
     adminChatId: string | null;
     channelAutoImport: boolean;
+    dailyReport: boolean;
+    reportHour: number;
+    bagReminders: boolean;
     autoVerifyPayments: boolean;
     paymentVerifyKeySet: boolean;
     paymentVerifyServerKey: boolean;
@@ -355,6 +358,14 @@ function TelegramCard({ settings, telegram }: { settings: SettingsResponse['sett
     },
     onError,
   });
+  const update = useMutation({
+    mutationFn: (body: { dailyReport?: boolean; reportHour?: number; bagReminders?: boolean }) => adminApi('/settings', { method: 'PUT', body }),
+    onSuccess: () => {
+      toast.ok('Saved');
+      void qc.invalidateQueries({ queryKey: ['admin', 'settings'] });
+    },
+    onError,
+  });
   const bot = telegram.botUsername;
   const command = code ? (code.purpose === 'admin' ? `/link@${bot} ${code.code}` : `/link ${code.code}`) : '';
 
@@ -378,6 +389,40 @@ function TelegramCard({ settings, telegram }: { settings: SettingsResponse['sett
           <Button variant="outline" size="sm" onClick={() => getCode.mutate('admin')} loading={getCode.isPending && getCode.variables === 'admin'}>
             {settings.adminChatId ? 'Change' : 'Connect'}
           </Button>
+        </div>
+        {settings.adminChatId && (
+          <div className="rounded-xl border border-seam/80 bg-ink/40 px-4 py-1">
+            <Toggle
+              checked={settings.dailyReport}
+              onChange={(v) => update.mutate({ dailyReport: v })}
+              label="Evening report"
+              hint="Sales, payments to check, orders to prepare and last-piece sizes — every day in the alerts chat. Send /report there any time."
+            />
+            {settings.dailyReport && (
+              <label className="flex items-center justify-between gap-4 border-t border-seam/60 py-2.5">
+                <span className="text-sm text-steel">Send at</span>
+                <select
+                  value={settings.reportHour}
+                  onChange={(e) => update.mutate({ reportHour: Number(e.target.value) })}
+                  className="h-9 rounded-lg border border-seam bg-wool px-2 font-mono text-sm"
+                >
+                  {[17, 18, 19, 20, 21, 22, 23].map((h) => (
+                    <option key={h} value={h}>
+                      {String(h).padStart(2, '0')}:00
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+        )}
+        <div className="rounded-xl border border-seam/80 bg-ink/40 px-4 py-1">
+          <Toggle
+            checked={settings.bagReminders}
+            onChange={(v) => update.mutate({ bagReminders: v })}
+            label="Remind customers about their bag"
+            hint="One friendly Telegram message 3 hours after a signed-in customer leaves items in the bag. Daytime only, at most once every 3 days."
+          />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

@@ -175,7 +175,7 @@ export interface Order {
   orderNumber: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
-  source: 'WEB' | 'MINI_APP' | 'ADMIN';
+  source: 'WEB' | 'MINI_APP' | 'ADMIN' | 'COUNTER';
   customerName: string;
   customerPhone: string;
   delivery: {

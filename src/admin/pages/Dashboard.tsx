@@ -20,13 +20,14 @@ interface Analytics {
   attention: { paymentsToCheck: number; toPrepare: number; onTheWay: number; lowStock: number; drafts: number };
   byDay: { day: string; revenue: number; orders: number }[];
   topProducts: { productId: string; name: string; quantity: number; image: string | null }[];
-  bySource: { source: 'WEB' | 'MINI_APP' | 'ADMIN'; orders: number; revenue: number }[];
+  bySource: { source: 'WEB' | 'MINI_APP' | 'ADMIN' | 'COUNTER'; orders: number; revenue: number }[];
 }
 
 const SOURCE: Record<string, { label: string; color: string }> = {
   MINI_APP: { label: 'Telegram app', color: '#B98B57' },
   WEB: { label: 'Website', color: '#ECE9E3' },
   ADMIN: { label: 'Entered by staff', color: '#7F8894' },
+  COUNTER: { label: 'In the shop', color: '#5E7A6A' },
 };
 
 function greeting() {

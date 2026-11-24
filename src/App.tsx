@@ -7,6 +7,7 @@ import { useLang } from './lib/i18n';
 import { startParam, startParamToPath } from './lib/telegram';
 import { useCustomer, useStaff } from './store/auth';
 import { useCart } from './store/cart';
+import { useBagSync } from './lib/bagSync';
 import Home from './pages/Home';
 
 const Shop = lazy(() => import('./pages/Shop'));
@@ -50,6 +51,7 @@ const router = createBrowserRouter([
 export default function App() {
   const lang = useLang((st) => st.lang);
   const bootstrap = useCustomer((st) => st.bootstrap);
+  useBagSync();
 
   useEffect(() => {
     document.documentElement.lang = lang;
