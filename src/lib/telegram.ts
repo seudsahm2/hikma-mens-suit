@@ -35,6 +35,16 @@ interface TgWebApp {
   openLink(url: string, opts?: { try_instant_view?: boolean }): void;
   openTelegramLink(url: string): void;
   requestContact(cb?: (ok: boolean, res?: { responseUnsafe?: { contact?: { phone_number?: string } } }) => void): void;
+  /** Bot API 8.0+: location through Telegram (works where the in-app browser blocks web geolocation). */
+  LocationManager?: {
+    isInited: boolean;
+    isLocationAvailable: boolean;
+    isAccessRequested: boolean;
+    isAccessGranted: boolean;
+    init(cb?: () => void): void;
+    getLocation(cb: (data: { latitude: number; longitude: number } | null) => void): void;
+    openSettings(): void;
+  };
   showConfirm(message: string, cb: (ok: boolean) => void): void;
   MainButton: TgButton;
   SecondaryButton?: TgButton;
@@ -93,6 +103,47 @@ export function requestPhone(): Promise<string | null> {
       resolve(ok && phone ? phone : null);
     });
   });
+}
+
+export type LocationResult = { ok: true; lat: number; lng: number } | { ok: false; reason: 'denied' | 'unavailable' };
+
+function browserLocation(): Promise<LocationResult> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve({ ok: false, reason: 'unavailable' });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ ok: true, lat: +pos.coords.latitude.toFixed(6), lng: +pos.coords.longitude.toFixed(6) }),
+      (err) => resolve({ ok: false, reason: err.code === err.PERMISSION_DENIED ? 'denied' : 'unavailable' }),
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
+    );
+  });
+}
+
+/**
+ * The customer's location. Inside Telegram it uses Telegram's LocationManager (Telegram asks for
+ * permission itself); the in-app browser often blocks normal web geolocation, especially on Android.
+ */
+export function getLocation(): Promise<LocationResult> {
+  const lm = tg && tg.isVersionAtLeast('8.0') ? tg.LocationManager : undefined;
+  if (!lm) return browserLocation();
+  return new Promise((resolve) => {
+    const read = () => {
+      if (!lm.isLocationAvailable) return void browserLocation().then(resolve);
+      lm.getLocation((data) => {
+        if (data) resolve({ ok: true, lat: +data.latitude.toFixed(6), lng: +data.longitude.toFixed(6) });
+        else resolve({ ok: false, reason: lm.isAccessRequested && !lm.isAccessGranted ? 'denied' : 'unavailable' });
+      });
+    };
+    if (lm.isInited) read();
+    else lm.init(read);
+  });
+}
+
+/** Opens Telegram's permission settings for this Mini App (to re-allow location after denying it). */
+export function openLocationSettings(): boolean {
+  const lm = tg?.LocationManager;
+  if (!lm?.isInited) return false;
+  lm.openSettings();
+  return true;
 }
 
 export function openExternal(url: string) {

@@ -10,7 +10,7 @@ import { useConfig } from '../hooks/queries';
 import { api, ApiError } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { birr, cn } from '../lib/format';
-import { haptic, isMiniApp, requestPhone } from '../lib/telegram';
+import { getLocation, haptic, isMiniApp, openLocationSettings, requestPhone } from '../lib/telegram';
 import type { Order, PaymentMethodPublic } from '../lib/types';
 import { useCustomer } from '../store/auth';
 import { cartSubtotal, useCart } from '../store/cart';
@@ -146,35 +146,37 @@ export default function Checkout() {
   };
 
   // Share GPS location, then show the place name and fill the address fields from it
-  const addLocation = () => {
-    if (!navigator.geolocation) return toast.error(t('checkout.locationDenied'));
+  // (Inside Telegram this goes through Telegram's own location permission.)
+  const addLocation = async () => {
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const c = { lat: +pos.coords.latitude.toFixed(6), lng: +pos.coords.longitude.toFixed(6) };
-        setCoords(c);
-        haptic.success();
-        try {
-          const { place } = await api<{ place: { label: string; area: string | null; landmark: string | null } | null }>('/geo/reverse', {
-            query: { lat: c.lat, lng: c.lng },
-          });
-          if (place) {
-            setPlaceLabel(place.label);
-            if (place.area) setArea((a) => a || place.area!);
-            if (place.landmark) setLandmark((l) => l || place.landmark!);
-          }
-        } catch {
-          /* coordinates are still saved with the order */
-        } finally {
-          setLocating(false);
-        }
-      },
-      (err) => {
-        setLocating(false);
-        toast.error(err.code === err.PERMISSION_DENIED ? t('checkout.locationDenied') : t('checkout.locationFailed'));
-      },
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
-    );
+    const loc = await getLocation();
+    if (!loc.ok) {
+      setLocating(false);
+      if (loc.reason === 'denied') {
+        toast.error(t('checkout.locationDenied'));
+        openLocationSettings(); // inside Telegram: lets the customer re-allow location
+      } else {
+        toast.error(t('checkout.locationFailed'));
+      }
+      return;
+    }
+    const c = { lat: loc.lat, lng: loc.lng };
+    setCoords(c);
+    haptic.success();
+    try {
+      const { place } = await api<{ place: { label: string; area: string | null; landmark: string | null } | null }>('/geo/reverse', {
+        query: { lat: c.lat, lng: c.lng },
+      });
+      if (place) {
+        setPlaceLabel(place.label);
+        if (place.area) setArea((a) => a || place.area!);
+        if (place.landmark) setLandmark((l) => l || place.landmark!);
+      }
+    } catch {
+      /* coordinates are still saved with the order */
+    } finally {
+      setLocating(false);
+    }
   };
   const removeLocation = () => {
     setCoords(null);

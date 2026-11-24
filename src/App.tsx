@@ -5,7 +5,8 @@ import { PageLoader } from './components/ui';
 import { Toaster } from './components/ui/toast';
 import { useLang } from './lib/i18n';
 import { startParam, startParamToPath } from './lib/telegram';
-import { useCustomer } from './store/auth';
+import { useCustomer, useStaff } from './store/auth';
+import { useCart } from './store/cart';
 import Home from './pages/Home';
 
 const Shop = lazy(() => import('./pages/Shop'));
@@ -57,6 +58,18 @@ export default function App() {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  // Keep open tabs in sync: signing in through the bot often opens the site in a new tab,
+  // and the bag can change in another tab.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'hikma-customer') void useCustomer.persist.rehydrate();
+      if (e.key === 'hikma-bag') void useCart.persist.rehydrate();
+      if (e.key === 'hikma-staff') void useStaff.persist.rehydrate();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   return (
     <>

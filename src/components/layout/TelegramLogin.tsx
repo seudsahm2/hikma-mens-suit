@@ -28,6 +28,10 @@ export function TelegramLogin() {
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const checking = useRef(false);
+  // `t` is a new function on every render; keep it in a ref so the callbacks below stay stable.
+  // (Depending on `t` directly re-created `prepare` each render → endless link requests → flicker + rate limit.)
+  const tRef = useRef(t);
+  tRef.current = t;
 
   const prepare = useCallback(async () => {
     setError(null);
@@ -35,9 +39,9 @@ export function TelegramLogin() {
       const r = await api<{ token: string; url: string; expiresInSeconds: number }>('/auth/telegram/bot-login', { method: 'POST' });
       setLink({ token: r.token, url: r.url, expiresAt: Date.now() + (r.expiresInSeconds - 20) * 1000 });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('auth.failed'));
+      setError(err instanceof ApiError ? err.message : tRef.current('auth.failed'));
     }
-  }, [t]);
+  }, []);
 
   // Prepare a link up front so the button is a real link (no popup blockers), and refresh it before it expires
   useEffect(() => {
@@ -59,13 +63,13 @@ export function TelegramLogin() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 410) {
         setWaiting(false);
-        toast.error(t('auth.expired'));
+        toast.error(tRef.current('auth.expired'));
         void prepare();
       }
     } finally {
       checking.current = false;
     }
-  }, [link, prepare, setSession, t]);
+  }, [link, prepare, setSession]);
 
   // While waiting: check every 2 s, and immediately when the user switches back from Telegram
   useEffect(() => {
