@@ -31,7 +31,7 @@ interface SettingsResponse {
   settings: StoreSettings & { channelChatId: string | null; adminChatId: string | null };
   paymentMethods: PaymentMethodRow[];
   deliveryOptions: DeliveryRow[];
-  telegram: { botConfigured: boolean };
+  telegram: { botConfigured: boolean; botUsername: string };
 }
 
 const onError = (err: unknown) => toast.error(err instanceof ApiError ? err.message : 'Failed');
@@ -274,14 +274,19 @@ function DeliveryCard({ initial }: { initial: DeliveryRow[] }) {
   );
 }
 
-function TelegramCard({ settings, botConfigured }: { settings: SettingsResponse['settings']; botConfigured: boolean }) {
+function TelegramCard({ settings, telegram }: { settings: SettingsResponse['settings']; telegram: SettingsResponse['telegram'] }) {
+  const qc = useQueryClient();
   const [code, setCode] = useState<{ purpose: 'admin' | 'channel'; code: string } | null>(null);
   const getCode = useMutation({
-    mutationFn: (purpose: 'admin' | 'channel') => adminApi<{ code: string }>('/settings/telegram-link', { body: { purpose } }).then((r) => ({ purpose, code: r.code })),
+    mutationFn: (purpose: 'admin' | 'channel') =>
+      adminApi<{ code: string }>('/settings/telegram-link', { body: { purpose } }).then((r) => ({ purpose, code: r.code })),
     onSuccess: setCode,
     onError,
   });
-  if (!botConfigured) {
+  const bot = telegram.botUsername;
+  const command = code ? (code.purpose === 'admin' ? `/link@${bot} ${code.code}` : `/link ${code.code}`) : '';
+
+  if (!telegram.botConfigured) {
     return (
       <Card title="Telegram">
         <p className="text-sm text-steel">The bot token isn’t set on the server yet.</p>
@@ -293,47 +298,63 @@ function TelegramCard({ settings, botConfigured }: { settings: SettingsResponse[
       <div className="space-y-5 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p>Order alerts group {settings.adminChatId ? <span className="text-ok">· connected</span> : <span className="text-steel">· not connected</span>}</p>
-            <p className="text-xs text-steel">New orders arrive in this group with buttons to confirm payment and update delivery.</p>
+            <p>
+              Order alerts {settings.adminChatId ? <span className="text-ok">· connected</span> : <span className="text-steel">· not connected</span>}
+            </p>
+            <p className="text-xs text-steel">New orders arrive with buttons to confirm payment and update delivery — in your own chat with the bot, or in a staff group.</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => getCode.mutate('admin')}>
-            Connect group
+          <Button variant="outline" size="sm" onClick={() => getCode.mutate('admin')} loading={getCode.isPending && getCode.variables === 'admin'}>
+            {settings.adminChatId ? 'Change' : 'Connect'}
           </Button>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p>Channel {settings.channelChatId ? <span className="text-ok">· connected</span> : <span className="text-steel">· not connected</span>}</p>
+            <p>
+              Channel {settings.channelChatId ? <span className="text-ok">· connected</span> : <span className="text-steel">· not connected</span>}
+            </p>
             <p className="text-xs text-steel">Lets you post products to the channel from the product page.</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => getCode.mutate('channel')}>
-            Connect channel
+          <Button variant="outline" size="sm" onClick={() => getCode.mutate('channel')} loading={getCode.isPending && getCode.variables === 'channel'}>
+            {settings.channelChatId ? 'Change' : 'Connect'}
           </Button>
         </div>
+
         {code && (
           <div className="rounded-xl border border-camel/40 bg-camel/[0.05] p-4">
-            <ol className="list-decimal space-y-1 pl-5 text-steel">
-              {code.purpose === 'admin' ? (
-                <>
-                  <li>Add @hikmafashionbot to your staff group.</li>
-                  <li>Send this message in the group:</li>
-                </>
-              ) : (
-                <>
-                  <li>Make @hikmafashionbot an admin of the channel (with “Post messages”).</li>
-                  <li>Post this message in the channel (the bot deletes it):</li>
-                </>
-              )}
-            </ol>
+            {code.purpose === 'admin' ? (
+              <ol className="list-decimal space-y-1.5 pl-5 text-steel">
+                <li>
+                  <span className="text-chalk">Alerts to you:</span> open{' '}
+                  <a href={`https://t.me/${bot}`} target="_blank" rel="noreferrer" className="text-camel underline underline-offset-2">
+                    @{bot}
+                  </a>
+                  , tap Start, and send the message below.
+                </li>
+                <li>
+                  <span className="text-chalk">Alerts to a staff group:</span> add @{bot} to the group and send the message below there.
+                </li>
+              </ol>
+            ) : (
+              <ol className="list-decimal space-y-1.5 pl-5 text-steel">
+                <li>Make @{bot} an admin of the channel, with “Post messages”.</li>
+                <li>Post the message below in the channel. The bot removes it and confirms.</li>
+              </ol>
+            )}
             <button
               onClick={() => {
-                void navigator.clipboard.writeText(`/link ${code.code}`);
+                void navigator.clipboard.writeText(command);
                 toast.ok('Copied');
               }}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-ink px-3 py-2 font-mono text-base"
+              className="mt-3 inline-flex max-w-full items-center gap-2 rounded-lg bg-ink px-3 py-2 font-mono text-[0.95rem]"
             >
-              /link {code.code} <Copy className="size-4 text-steel" />
+              <span className="truncate">{command}</span> <Copy className="size-4 shrink-0 text-steel" />
             </button>
-            <p className="mt-2 text-xs text-steel">The code works for 10 minutes. Refresh this page after sending it.</p>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-xs text-steel">Works once, for 15 minutes.</p>
+              <Button variant="ghost" size="sm" onClick={() => void qc.invalidateQueries({ queryKey: ['admin', 'settings'] })}>
+                I sent it — check
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -350,7 +371,7 @@ export default function SettingsPage() {
       <HeroCard settings={data.settings} />
       <PaymentsCard initial={data.paymentMethods} />
       <DeliveryCard initial={data.deliveryOptions} />
-      <TelegramCard settings={data.settings} botConfigured={data.telegram.botConfigured} />
+      <TelegramCard settings={data.settings} telegram={data.telegram} />
       <StoreCard initial={data.settings} />
     </div>
   );
