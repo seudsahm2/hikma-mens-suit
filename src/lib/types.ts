@@ -134,7 +134,7 @@ export interface PublicConfig {
   store: StoreSettings;
   paymentMethods: PaymentMethodPublic[];
   deliveryOptions: DeliveryOptionPublic[];
-  telegram: { botUsername: string; miniAppShortName: string };
+  telegram: { botUsername: string };
 }
 
 export type Role = 'CUSTOMER' | 'ADMIN' | 'OWNER';
