@@ -9,6 +9,8 @@ export interface AdminVariant {
   price: number | null;
   stock: number;
   isActive: boolean;
+  /** customers waiting for this size ("Notify me when back") */
+  _count?: { alerts: number };
 }
 
 export interface AdminProduct {

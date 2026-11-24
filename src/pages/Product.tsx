@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { AnimatePresence, motion, useAnimationControls } from 'motion/react';
 import { Check, ChevronRight, Send, Truck, X } from 'lucide-react';
@@ -14,6 +15,9 @@ import { birr, cn, sortSizes } from '../lib/format';
 import { haptic, isMiniApp, openExternal } from '../lib/telegram';
 import type { Product as P } from '../lib/types';
 import { useCart } from '../store/cart';
+import { useCustomer } from '../store/auth';
+import { api, ApiError } from '../lib/api';
+import { TelegramLogin } from '../components/layout/TelegramLogin';
 
 function useSelection(product?: P) {
   const colors = useMemo(() => {
@@ -109,6 +113,44 @@ export default function ProductPage() {
 
   const related = useProducts({ category: product?.category.slug, exclude: product?.id, limit: 8 }, Boolean(product));
 
+  // "Notify me when back" — which sold-out sizes of this product the customer is waiting for
+  const qc = useQueryClient();
+  const token = useCustomer((s) => s.token);
+  const alertsQ = useQuery({
+    queryKey: ['alerts', product?.id, token],
+    queryFn: () => api<{ variantIds: string[] }>('/alerts', { query: { productId: product!.id } }).then((r) => r.variantIds),
+    enabled: Boolean(product && token),
+  });
+  const [signInFor, setSignInFor] = useState<string | null>(null); // variant waiting for sign-in
+  const [alertBusy, setAlertBusy] = useState(false);
+  const tRef = useRef(t);
+  tRef.current = t;
+
+  const subscribe = useCallback(
+    async (variantId: string) => {
+      setAlertBusy(true);
+      try {
+        await api('/alerts', { body: { variantId } });
+        haptic.success();
+        toast.ok(tRef.current('product.notifySaved'));
+        void qc.invalidateQueries({ queryKey: ['alerts'] });
+      } catch (err) {
+        toast.error(err instanceof ApiError ? err.message : tRef.current('common.loadError'));
+      } finally {
+        setAlertBusy(false);
+      }
+    },
+    [qc],
+  );
+  // Signed in from the sheet → finish the request the customer started
+  useEffect(() => {
+    if (token && signInFor) {
+      const id = signInFor;
+      setSignInFor(null);
+      void subscribe(id);
+    }
+  }, [token, signInFor, subscribe]);
+
   if (isLoading) return <PageLoader />;
   if (error || !product) {
     const notFound = (error as { status?: number } | null)?.status === 404;
@@ -150,8 +192,38 @@ export default function ProductPage() {
   // Once the chosen size is in the bag, the main button leads to the bag instead of adding again
   const inBag = Boolean(sel.variant && lines.some((l) => l.variantId === sel.variant!.id));
   const bagCount = lines.reduce((n, l) => n + l.quantity, 0);
-  const mainLabel = soldOut ? t('product.soldOut') : inBag ? t('product.inBag') : `${t('product.addToBag')} · ${birr(price)}`;
-  const mainAction = () => (inBag ? navigate('/bag') : addToBag());
+
+  // Sold-out choice → offer "Notify me when back" instead of a dead button
+  const alertVariant =
+    sel.variant && sel.variant.available <= 0 ? sel.variant : soldOut && !sel.sizes.length ? (product.variants[0] ?? null) : null;
+  const watching = Boolean(alertVariant && alertsQ.data?.includes(alertVariant.id));
+  const needSizeForAlert = soldOut && sel.sizes.length > 0 && !sel.size;
+
+  const toggleAlert = async () => {
+    if (!alertVariant) return;
+    if (watching) {
+      await api(`/alerts/${alertVariant.id}`, { method: 'DELETE' }).catch(() => undefined);
+      toast.ok(t('product.notifyOff'));
+      void qc.invalidateQueries({ queryKey: ['alerts'] });
+      return;
+    }
+    if (!token) return setSignInFor(alertVariant.id); // opens the Telegram sign-in sheet
+    await subscribe(alertVariant.id);
+  };
+
+  const mainLabel = alertVariant
+    ? watching
+      ? t('product.notifyOn')
+      : alertVariant.size
+        ? t('product.notifyMeSize', { size: alertVariant.size })
+        : t('product.notifyMe')
+    : needSizeForAlert
+      ? t('product.pickSizeNotify')
+      : inBag
+        ? t('product.inBag')
+        : `${t('product.addToBag')} · ${birr(price)}`;
+  const mainAction = () => (alertVariant ? void toggleAlert() : needSizeForAlert || !inBag ? addToBag() : navigate('/bag'));
+  const mainDisabled = alertBusy;
 
   const ask = () => {
     if (!config) return;
@@ -223,10 +295,10 @@ export default function ProductPage() {
         <div className="mt-6 hidden md:block">
           <button
             onClick={mainAction}
-            disabled={soldOut}
+            disabled={mainDisabled}
             className={cn(
               'h-14 w-full rounded-full font-semibold transition-colors disabled:opacity-40',
-              inBag ? 'border border-camel text-camel hover:bg-camel/10' : 'bg-camel text-ink hover:bg-camel-soft',
+              inBag || watching ? 'border border-camel text-camel hover:bg-camel/10' : 'bg-camel text-ink hover:bg-camel-soft',
             )}
           >
             {mainLabel}
@@ -272,7 +344,7 @@ export default function ProductPage() {
       )}
 
       <div className="md:hidden">
-        <PrimaryAction label={mainLabel} onClick={mainAction} disabled={soldOut} />
+        <PrimaryAction label={mainLabel} onClick={mainAction} disabled={mainDisabled} />
       </div>
 
       {/* "Added to your bag" card: confirms the add and offers the next step */}
@@ -313,6 +385,10 @@ export default function ProductPage() {
       </AnimatePresence>
 
       <SizeGuide product={product} open={guideOpen} onClose={() => setGuideOpen(false)} />
+      {/* Sign in to get the back-in-stock message on Telegram */}
+      <Sheet open={Boolean(signInFor) && !token} onClose={() => setSignInFor(null)}>
+        <TelegramLogin />
+      </Sheet>
     </div>
   );
 }

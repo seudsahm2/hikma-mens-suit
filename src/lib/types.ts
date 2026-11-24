@@ -151,6 +151,7 @@ export interface User {
   city: string | null;
   area: string | null;
   landmark: string | null;
+  newsOptIn?: boolean;
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PACKING' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'PICKED_UP' | 'CANCELLED';
@@ -198,6 +199,8 @@ export interface Order {
   items: OrderItem[];
   costTotal?: number;
   profit?: number;
+  /** Staff only: result of the automatic payment check or a duplicate-receipt warning */
+  paymentCheck?: string | null;
   events?: { id: string; type: string; message: string | null; createdAt: string }[];
   createdAt: string;
   updatedAt: string;

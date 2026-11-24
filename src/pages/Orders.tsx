@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { Check, ChevronRight, ImagePlus } from 'lucide-react';
 import { Mark } from '../components/brand/Mark';
 import { TelegramLogin } from '../components/layout/TelegramLogin';
+import { NewsToggle } from '../components/layout/NewsToggle';
 import { Button, Empty, ErrorState, Input, PageLoader, Price, buttonClass } from '../components/ui';
 import { toast } from '../components/ui/toast';
 import { useConfig, useMyOrders, useOrder } from '../hooks/queries';
@@ -43,6 +44,7 @@ export function OrdersPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 pt-6 md:pt-10">
       <h1 className="display text-[2rem]">{t('orders.title')}</h1>
+      <NewsToggle className="mt-6" />
       <ul className="mt-6 divide-y divide-seam border-y border-seam">
         {data.map((o) => (
           <li key={o.id}>
@@ -182,6 +184,7 @@ export function OrderPage() {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-10 flex flex-col items-center text-center">
           <Mark draw className="size-20" ring="#B98B57" />
           <h1 className="display mt-6 text-[1.9rem]">{t('order.placed')}</h1>
+          <NewsToggle className="mt-6 w-full text-left" />
         </motion.div>
       )}
 

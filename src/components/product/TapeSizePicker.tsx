@@ -51,17 +51,18 @@ export function TapeSizePicker({ sizes, value, isAvailable, onChange, label }: P
               type="button"
               role="radio"
               aria-checked={selected}
-              aria-disabled={!available}
+              aria-label={available ? size : `${size} — sold out`}
               data-size={size}
+              // Sold-out sizes stay selectable so the customer can ask to be notified when they're back
               onClick={() => {
-                if (!available) return;
                 haptic.select();
                 onChange(size);
               }}
               className={cn(
                 'relative flex h-[4.25rem] min-w-[3.75rem] flex-1 flex-col items-center justify-end pb-2.5 font-mono text-[1.05rem] font-medium tabular-nums transition-colors duration-200',
                 selected && 'bg-ink text-chalk',
-                !available && 'cursor-not-allowed text-ink/35',
+                !available && !selected && 'text-ink/35',
+                !available && selected && 'text-chalk/60',
               )}
             >
               {/* major graduation */}

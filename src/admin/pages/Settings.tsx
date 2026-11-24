@@ -28,7 +28,15 @@ interface DeliveryRow {
   sortOrder: number;
 }
 interface SettingsResponse {
-  settings: StoreSettings & { channelChatId: string | null; adminChatId: string | null; channelAutoImport: boolean };
+  settings: StoreSettings & {
+    channelChatId: string | null;
+    adminChatId: string | null;
+    channelAutoImport: boolean;
+    autoVerifyPayments: boolean;
+    paymentVerifyKeySet: boolean;
+    paymentVerifyServerKey: boolean;
+    autoVerifyMethods: string[];
+  };
   paymentMethods: PaymentMethodRow[];
   deliveryOptions: DeliveryRow[];
   telegram: { botConfigured: boolean; botUsername: string };
@@ -234,6 +242,62 @@ function PaymentsCard({ initial }: { initial: PaymentMethodRow[] }) {
   );
 }
 
+/** Automatic payment checking (ShegerPay). Off by default — staff confirm payments by hand. */
+function AutoPayCard({ settings }: { settings: SettingsResponse['settings'] }) {
+  const qc = useQueryClient();
+  const [key, setKey] = useState('');
+  const hasKey = settings.paymentVerifyKeySet || settings.paymentVerifyServerKey;
+  const save = useMutation({
+    mutationFn: (body: { enabled: boolean; apiKey?: string }) => adminApi('/settings/payment-verification', { method: 'PUT', body }),
+    onSuccess: (_r, body) => {
+      setKey('');
+      toast.ok(body.enabled ? 'Automatic payment checking is on' : 'Payments are checked by hand');
+      void qc.invalidateQueries({ queryKey: ['admin', 'settings'] });
+    },
+    onError,
+  });
+  return (
+    <Card title="Automatic payment checking">
+      <p className="text-sm text-steel">
+        When on, a customer’s transaction number is checked with <b className="text-chalk">ShegerPay</b> right away: real payments are confirmed
+        automatically, anything else waits for you. Use the API key of <b className="text-chalk">your own</b> ShegerPay account. Works for{' '}
+        {settings.autoVerifyMethods.join(', ')}; other methods are always checked by hand.
+      </p>
+      <div className="mt-4 rounded-xl border border-seam/80 bg-ink/40 px-4 py-1">
+        <Toggle
+          checked={settings.autoVerifyPayments}
+          onChange={(v) => save.mutate({ enabled: v, ...(key ? { apiKey: key } : {}) })}
+          label={settings.autoVerifyPayments ? 'On — payments are checked automatically' : 'Off — you confirm payments by hand'}
+          hint={hasKey ? (settings.paymentVerifyKeySet ? 'API key saved' : 'Using the key set on the server') : 'Add the API key below first'}
+        />
+      </div>
+      <div className="mt-4 flex flex-wrap items-end gap-2">
+        <Input
+          name="shegerKey"
+          label={settings.paymentVerifyKeySet ? 'Replace API key' : 'ShegerPay API key'}
+          placeholder="sk_live_…"
+          type="password"
+          autoComplete="off"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          className="font-mono"
+        />
+        <Button variant="outline" size="md" disabled={!key.trim()} loading={save.isPending} onClick={() => save.mutate({ enabled: settings.autoVerifyPayments, apiKey: key.trim() })}>
+          Save key
+        </Button>
+        {settings.paymentVerifyKeySet && (
+          <Button variant="ghost" size="md" onClick={() => window.confirm('Remove the saved key? Automatic checking will turn off.') && save.mutate({ enabled: false, apiKey: '' })}>
+            Remove key
+          </Button>
+        )}
+      </div>
+      <p className="mt-3 text-xs text-steel">
+        A transaction number already used on another order is never confirmed automatically — it’s flagged for you to check.
+      </p>
+    </Card>
+  );
+}
+
 function DeliveryCard({ initial }: { initial: DeliveryRow[] }) {
   const qc = useQueryClient();
   const [rows, setRows] = useState(initial);
@@ -388,6 +452,7 @@ export default function SettingsPage() {
       <PageHeader title="Settings" />
       <HeroCard settings={data.settings} />
       <PaymentsCard initial={data.paymentMethods} />
+      <AutoPayCard settings={data.settings} />
       <DeliveryCard initial={data.deliveryOptions} />
       <TelegramCard settings={data.settings} telegram={data.telegram} />
       <StoreCard initial={data.settings} />

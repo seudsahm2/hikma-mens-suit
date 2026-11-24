@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, ImagePlus, Plus, Send, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Bell, Megaphone, ChevronLeft, ChevronRight, ExternalLink, ImagePlus, Plus, Send, Trash2, X } from 'lucide-react';
 import { Button, ErrorState, Input, PageLoader, Textarea } from '../../components/ui';
 import { toast } from '../../components/ui/toast';
 import { ApiError } from '../../lib/api';
@@ -278,6 +278,10 @@ function StockGrid({ product, category, onChange }: { product: AdminProduct; cat
   };
 
   const total = sizes.reduce((n, s) => n + colors.reduce((m, c) => m + Number(state.stock[`${s}|${c.name}`] || 0), 0), 0);
+  // Customers waiting for sold-out sizes ("Notify me when back")
+  const waiting = product.variants
+    .filter((v) => (v._count?.alerts ?? 0) > 0)
+    .map((v) => ({ label: [v.size, v.color].filter(Boolean).join(' / ') || 'this item', count: v._count!.alerts }));
 
   return (
     <Card title="Sizes, colours & stock" action={<span className="font-mono text-xs text-steel">{total} pcs</span>}>
@@ -387,9 +391,84 @@ function StockGrid({ product, category, onChange }: { product: AdminProduct; cat
           </table>
         </div>
       )}
+      {waiting.length > 0 && (
+        <p className="mt-4 flex items-start gap-2 rounded-lg bg-camel/[0.08] px-3 py-2.5 text-sm">
+          <Bell className="mt-0.5 size-4 shrink-0 text-camel" />
+          <span>
+            {waiting.reduce((n, w) => n + w.count, 0)} waiting for{' '}
+            <b>{waiting.map((w) => `${w.label} (${w.count})`).join(', ')}</b> — they get a Telegram message as soon as you add stock and save.
+          </span>
+        </p>
+      )}
       <Button variant="accent" className="mt-5" loading={saving} onClick={save}>
         Save stock
       </Button>
+    </Card>
+  );
+}
+
+// ─── New-arrival announcement ────────────────────────────
+
+interface BroadcastInfo {
+  subscribers: number;
+  last: { status: 'sending' | 'done' | 'cancelled'; total: number; sentCount: number; failedCount: number; createdAt: string } | null;
+}
+
+function Announce({ product }: { product: AdminProduct }) {
+  const qc = useQueryClient();
+  const info = useQuery({
+    queryKey: ['admin', 'announce', product.id],
+    queryFn: () => adminApi<BroadcastInfo>(`/products/${product.id}/announce`),
+    refetchInterval: (q) => (q.state.data?.last?.status === 'sending' ? 2000 : false),
+  });
+  const send = useMutation({
+    mutationFn: (force: boolean) => adminApi(`/products/${product.id}/announce`, { body: { force } }),
+    onSuccess: () => {
+      toast.ok('Sending to subscribers…');
+      void qc.invalidateQueries({ queryKey: ['admin', 'announce', product.id] });
+    },
+    onError: (err) => {
+      if (err instanceof ApiError && err.code === 'ALREADY_ANNOUNCED') {
+        if (window.confirm('This product was already announced this week. Send again anyway?')) send.mutate(true);
+        return;
+      }
+      toast.error(err instanceof ApiError ? err.message : 'Failed');
+    },
+  });
+  const d = info.data;
+  const last = d?.last;
+  return (
+    <Card title="Announce to customers">
+      <p className="text-sm text-steel">
+        Sends this product’s photo, name and price with a <b className="text-chalk">View</b> button to everyone who asked for new arrivals on Telegram.
+      </p>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="font-mono text-sm">
+          <Bell className="mr-1.5 inline size-4 text-camel" />
+          {d ? `${d.subscribers} subscriber${d.subscribers === 1 ? '' : 's'}` : '…'}
+        </p>
+        <Button
+          variant="primary"
+          loading={send.isPending}
+          disabled={product.status !== 'ACTIVE' || !product.images.length || !d?.subscribers || last?.status === 'sending'}
+          onClick={() => send.mutate(false)}
+        >
+          <Megaphone className="size-4" /> Announce
+        </Button>
+      </div>
+      {last && (
+        <p className="mt-3 text-xs text-steel">
+          {last.status === 'sending'
+            ? `Sending… ${last.sentCount} of ${last.total}`
+            : last.status === 'done'
+              ? `Last sent ${new Date(last.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · ${last.sentCount} delivered${last.failedCount ? `, ${last.failedCount} unreachable` : ''}`
+              : 'Last announcement was cancelled'}
+        </p>
+      )}
+      {product.status !== 'ACTIVE' && <p className="mt-2 text-xs text-steel">Put the product on sale first.</p>}
+      {d && !d.subscribers && (
+        <p className="mt-2 text-xs text-steel">No subscribers yet — customers subscribe with the bot’s “🔔 New arrivals” button, /news, or on the website.</p>
+      )}
     </Card>
   );
 }
@@ -593,6 +672,7 @@ export default function ProductEditor() {
       </Card>
 
       {product && <StockGrid key={`${product.id}-${category?.id}`} product={product} category={category} onChange={setProduct} />}
+      {product && <Announce product={product} />}
       {product && <Publish product={product} />}
 
       {product && (

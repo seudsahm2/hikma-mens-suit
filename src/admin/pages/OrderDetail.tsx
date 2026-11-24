@@ -154,6 +154,16 @@ export default function OrderDetail() {
                 </div>
               )}
             </dl>
+            {order.paymentCheck && (
+              <p
+                className={cn(
+                  'mt-4 rounded-lg px-3 py-2.5 text-sm',
+                  order.paymentCheck.startsWith('⚠️') ? 'bg-danger/10 text-danger' : order.paymentCheck.includes('Verified') ? 'bg-ok/10 text-ok' : 'bg-camel/10 text-camel',
+                )}
+              >
+                {order.paymentCheck}
+              </p>
+            )}
             {order.payment.proofUrl && (
               <a href={order.payment.proofUrl} target="_blank" rel="noreferrer" className="mt-4 block">
                 <img src={order.payment.proofUrl} alt="Payment screenshot" className="max-h-96 rounded-lg border border-seam object-contain" />
