@@ -35,7 +35,12 @@ export function PrimaryAction({ label, onClick, disabled, loading, aside }: Prop
   useEffect(() => {
     if (!tg || !usesNativeButton) return;
     const mb = tg.MainButton;
-    mb.setParams({ text: label, color: '#B98B57', text_color: '#0D1015', is_visible: true, is_active: !disabled && !loading });
+    // Text is set on its own (Telegram Android can show the previous text when it's bundled into setParams)
+    mb.setParams({ color: '#B98B57', text_color: '#0D1015' });
+    mb.setText(label);
+    if (!disabled && !loading) mb.enable();
+    else mb.disable();
+    mb.show();
     if (loading) mb.showProgress(false);
     else mb.hideProgress();
   }, [label, disabled, loading]);
