@@ -85,16 +85,26 @@ export function DriversSection({ botUsername }: { botUsername: string }) {
             </div>
             {!d.linked && d.linkCode && d.isActive && (
               <div className="mt-3 rounded-xl bg-ink/50 p-3 text-xs text-steel">
-                Ask {d.name.split(' ')[0]} to open <b className="text-chalk">@{botUsername}</b>, tap Start and send:
-                <button
-                  onClick={() => {
-                    void navigator.clipboard?.writeText(`/driver ${d.linkCode}`);
-                    toast.ok('Copied');
-                  }}
-                  className="mt-2 flex items-center gap-2 rounded-lg border border-camel/40 px-3 py-2 font-mono text-base text-chalk"
-                >
-                  /driver {d.linkCode} <Copy className="size-4 text-steel" />
-                </button>
+                Not connected yet — send {d.name.split(' ')[0]} this invite. They tap it, press <b className="text-chalk">Start</b>, and their own Telegram is linked.
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <a
+                    href={`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/${botUsername}?start=drv_${d.linkCode}`)}&text=${encodeURIComponent('Hikma deliveries — tap to connect:')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-lg bg-camel px-3 py-2 text-sm font-semibold text-ink"
+                  >
+                    Send invite on Telegram
+                  </a>
+                  <button
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(`https://t.me/${botUsername}?start=drv_${d.linkCode}`);
+                      toast.ok('Invite link copied');
+                    }}
+                    className="flex items-center gap-2 rounded-lg border border-camel/40 px-3 py-2 text-sm text-chalk"
+                  >
+                    Copy link <Copy className="size-4 text-steel" />
+                  </button>
+                </div>
               </div>
             )}
             <div className="mt-2 flex justify-end gap-3 text-xs">
