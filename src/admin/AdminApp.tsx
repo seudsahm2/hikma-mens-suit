@@ -119,7 +119,7 @@ function Shell() {
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[248px_1fr]">
-      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-seam/80 bg-[radial-gradient(120%_60%_at_0%_0%,rgba(185,139,87,0.08),transparent_60%)] p-4 md:flex">
+      <aside className="sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r border-seam/80 bg-[radial-gradient(120%_60%_at_0%_0%,rgba(185,139,87,0.08),transparent_60%)] p-4 md:flex">
         <div className="px-2 pb-2 pt-3">
           <Wordmark />
         </div>
@@ -155,7 +155,7 @@ function Shell() {
               // Connect this staff account to the owner's own Telegram (order-card actions become theirs)
               const tab = window.open('', '_blank');
               try {
-                const r = await api<{ url: string }>('/auth/staff-telegram', { method: 'POST' });
+                const r = await api<{ url: string }>('/auth/staff-telegram', { method: 'POST', auth: 'staff' });
                 if (tab) tab.location.href = r.url;
                 else window.location.href = r.url;
               } catch {

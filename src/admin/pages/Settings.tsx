@@ -21,6 +21,7 @@ import {
   Truck,
   Upload,
   Wallet,
+  UserRound,
 } from 'lucide-react';
 import { Button, Input, PageLoader, Sheet, Textarea } from '../../components/ui';
 import { toast } from '../../components/ui/toast';
@@ -28,6 +29,7 @@ import { ApiError } from '../../lib/api';
 import { birr, cn } from '../../lib/format';
 import type { StoreSettings } from '../../lib/types';
 import { adminApi } from '../ui';
+import { api } from '../../lib/api';
 import { DriversSection } from './Drivers';
 
 // ─── Types ───────────────────────────────────────────────
@@ -592,6 +594,31 @@ function TelegramTab({ data }: { data: SettingsResponse }) {
           </button>
         ))}
       </div>
+
+      <Group title="You">
+        <Row
+          icon={<Tile tone="camel"><UserRound className="size-4" /></Tile>}
+          title="Your Telegram"
+          desc="Connect it so what you tap on order cards is recorded as you (tap Start in the bot)"
+          right={
+            <button
+              onClick={async () => {
+                const tab = window.open('', '_blank');
+                try {
+                  const r = await api<{ url: string }>('/auth/staff-telegram', { method: 'POST', auth: 'staff' });
+                  if (tab) tab.location.href = r.url;
+                  else window.location.href = r.url;
+                } catch {
+                  tab?.close();
+                }
+              }}
+              className="rounded-full border border-camel/50 px-3 py-1.5 text-sm text-camel hover:bg-camel/10"
+            >
+              Connect →
+            </button>
+          }
+        />
+      </Group>
 
       <Group title="Automatic">
         <Row
