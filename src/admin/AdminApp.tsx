@@ -28,43 +28,120 @@ const SettingsPage = lazyRetry(() => import('./pages/Settings'));
 
 function Login() {
   const setSession = useStaff((s) => s.setSession);
+  // login → forgot (phone) → reset (code from Telegram + new password)
+  const [mode, setMode] = useState<'login' | 'forgot' | 'reset'>('login');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setError('');
     try {
-      const res = await api<{ token: string; user: User }>('/auth/staff/login', { body: { phone, password } });
-      setSession(res);
+      await fn();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Sign-in failed');
+      setError(err instanceof ApiError ? err.message : 'Something went wrong — try again');
     } finally {
       setBusy(false);
     }
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void run(async () => {
+      if (mode === 'login') {
+        setSession(await api<{ token: string; user: User }>('/auth/staff/login', { body: { phone, password } }));
+      } else if (mode === 'forgot') {
+        await api('/auth/staff/forgot', { body: { phone } });
+        setPassword('');
+        setMode('reset');
+      } else {
+        setSession(await api<{ token: string; user: User }>('/auth/staff/reset', { body: { phone, code, password } }));
+      }
+    });
+  };
+
+  const switchTo = (m: 'login' | 'forgot') => {
+    setMode(m);
+    setError('');
+    setCode('');
+    setPassword('');
   };
 
   return (
     <div className="grid min-h-dvh place-items-center px-6">
       <form onSubmit={submit} className="w-full max-w-sm space-y-5">
         <Wordmark />
-        <h1 className="display pt-6 text-2xl">Shop admin</h1>
-        <Input name="phone" label="Phone" type="tel" autoComplete="username" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <h1 className="display pt-6 text-2xl">{mode === 'login' ? 'Shop admin' : 'Reset password'}</h1>
+        {mode !== 'login' && (
+          <p className="text-sm text-steel">
+            {mode === 'forgot'
+              ? 'We’ll send a 6-digit code to the Telegram connected to your account.'
+              : 'If this phone has Telegram connected, a code is on its way. Enter it with your new password.'}
+          </p>
+        )}
         <Input
-          name="password"
-          label="Password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          error={error || undefined}
+          name="phone"
+          label="Phone"
+          type="tel"
+          autoComplete="username"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          disabled={mode === 'reset'}
+          error={mode === 'forgot' ? error || undefined : undefined}
         />
-        <Button type="submit" variant="accent" size="lg" block loading={busy} disabled={!phone || !password}>
-          Sign in
+        {mode === 'reset' && (
+          <Input
+            name="code"
+            label="Code from Telegram"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+          />
+        )}
+        {mode !== 'forgot' && (
+          <Input
+            name="password"
+            label={mode === 'reset' ? 'New password (8+ characters)' : 'Password'}
+            type="password"
+            autoComplete={mode === 'reset' ? 'new-password' : 'current-password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={error || undefined}
+          />
+        )}
+        <Button
+          type="submit"
+          variant="accent"
+          size="lg"
+          block
+          loading={busy}
+          disabled={!phone || (mode === 'login' && !password) || (mode === 'reset' && (code.length !== 6 || password.length < 8))}
+        >
+          {mode === 'login' ? 'Sign in' : mode === 'forgot' ? 'Send code' : 'Save new password'}
         </Button>
+        <div className="flex justify-center text-sm">
+          {mode === 'login' ? (
+            <button type="button" onClick={() => switchTo('forgot')} className="text-steel hover:text-chalk">
+              Forgot password?
+            </button>
+          ) : (
+            <div className="flex gap-5">
+              {mode === 'reset' && (
+                <button type="button" onClick={() => switchTo('forgot')} className="text-steel hover:text-chalk">
+                  Send a new code
+                </button>
+              )}
+              <button type="button" onClick={() => switchTo('login')} className="text-steel hover:text-chalk">
+                Back to sign in
+              </button>
+            </div>
+          )}
+        </div>
       </form>
     </div>
   );
@@ -208,6 +285,7 @@ function Shell() {
       </div>
 
       <main className="min-w-0 px-4 py-6 md:px-10 md:py-12">
+        <TelegramBanner />
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route index element={<Dashboard />} />
@@ -239,3 +317,41 @@ export default function AdminApp() {
   return token ? <Shell /> : <Login />;
 }
 
+
+/**
+ * Shown on every admin page until this staff account has its Telegram connected —
+ * it's what makes "Forgot password?" work (the reset code goes there).
+ */
+function TelegramBanner() {
+  const q = useQuery({
+    queryKey: ['admin', 'my-telegram'],
+    queryFn: () => api<{ connected: boolean }>('/auth/staff-telegram', { auth: 'staff' }),
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) => (query.state.data?.connected === false ? 5000 : false),
+  });
+  if (q.data?.connected !== false) return null;
+  const connect = async () => {
+    const tab = window.open('', '_blank');
+    try {
+      const r = await api<{ url: string }>('/auth/staff-telegram', { method: 'POST', auth: 'staff' });
+      if (tab) tab.location.href = r.url;
+      else window.location.href = r.url;
+    } catch {
+      tab?.close();
+    }
+  };
+  return (
+    <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-[#2AABEE]/30 bg-[#2AABEE]/[0.07] p-4 sm:flex-row sm:items-center">
+      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#2AABEE] text-white">
+        <Send className="size-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-medium">Connect your Telegram</p>
+        <p className="text-sm text-steel">It’s how you reset your password if you forget it. Check which account is open in Telegram first.</p>
+      </div>
+      <button onClick={connect} className="h-10 shrink-0 rounded-full bg-[#2AABEE] px-5 text-sm font-semibold text-white hover:bg-[#229ED9]">
+        Connect
+      </button>
+    </div>
+  );
+}
