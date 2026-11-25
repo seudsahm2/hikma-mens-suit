@@ -21,6 +21,18 @@ import { useDataSaver } from '../store/dataSaver';
  *  - the cover photo (or the logo) stays underneath and the video fades in only once it really plays,
  *    so a blocked or slow video never leaves an empty black box
  */
+function useIsDesktop() {
+  const query = '(min-width: 768px)';
+  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    const on = () => setMatch(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, []);
+  return match;
+}
+
 function HeroMedia({ store, className }: { store: StoreSettings; className: string }) {
   const saver = useDataSaver(); // slow connection: the cover photo instead of the video
   const ref = useRef<HTMLVideoElement>(null);
@@ -104,6 +116,8 @@ function HeroMedia({ store, className }: { store: StoreSettings; className: stri
 function Hero({ store, products, categories }: { store?: StoreSettings; products: ProductCard[]; categories: Category[] }) {
   const { t } = useT();
   const hasMedia = Boolean(store?.heroVideoUrl || store?.heroImageUrl);
+  // Only the layout on screen gets a video — the hidden one would still download and decode it
+  const desktop = useIsDesktop();
 
   const headline = (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}>
@@ -121,7 +135,7 @@ function Hero({ store, products, categories }: { store?: StoreSettings; products
       {/* Phone layout */}
       <div className="stay-dark relative isolate flex min-h-[80svh] flex-col justify-end bg-ink text-chalk md:hidden">
         {store && hasMedia ? (
-          <HeroMedia store={store} className="absolute inset-0 -z-10 size-full object-cover" />
+          !desktop && <HeroMedia store={store} className="absolute inset-0 -z-10 size-full object-cover" />
         ) : (
           <div className="absolute inset-0 -z-10 grid place-items-center">
             <Mark draw className="w-[92vw] translate-y-[-8%] opacity-[0.16]" fill="transparent" stroke="#B98B57" />
@@ -133,7 +147,7 @@ function Hero({ store, products, categories }: { store?: StoreSettings; products
       </div>
 
       {/* Desktop: editorial cover (components/home/DesktopHero) */}
-      <DesktopHero store={store} products={products} categories={categories} video={store ? <HeroMedia store={store} className="relative size-full" /> : null} />
+      <DesktopHero store={store} products={products} categories={categories} video={store && desktop ? <HeroMedia store={store} className="relative size-full" /> : null} />
     </section>
   );
 }

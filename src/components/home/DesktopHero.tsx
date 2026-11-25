@@ -7,40 +7,52 @@
  *  - a slowly scrolling tape-measure strip of the categories along the bottom
  * Always dark (cinematic), also in light mode.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { motion } from 'motion/react';
 import { ArrowRight, BadgeCheck, Play, RefreshCw, Truck, Wallet } from 'lucide-react';
 import { Mark } from '../brand/Mark';
 import { buttonClass, Img, Price } from '../ui';
 import { useT } from '../../lib/i18n';
-import { openExternal } from '../../lib/telegram';
+import { isMiniApp, openExternal } from '../../lib/telegram';
 import type { Category, ProductCard, StoreSettings } from '../../lib/types';
-import { useDataSaver } from '../../store/dataSaver';
 import { salePrice, useSaleFor } from '../checkout/Offers';
 import { SoundToggle } from './heroSound';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-/** Muted background copy of the hero video (or the cover photo), blurred into atmosphere. */
-function Ambient({ store }: { store: StoreSettings }) {
-  const saver = useDataSaver();
-  const ref = useRef<HTMLVideoElement>(null);
+/**
+ * Atmosphere behind the hero: a tiny snapshot of the playing hero video (or the cover photo), blurred
+ * and scaled up. It's refreshed every few seconds — NOT a second playing video with a full-screen blur
+ * (that repainted the whole screen every frame and made every click on the page slow).
+ */
+function Ambient({ store, stage }: { store: StoreSettings; stage: React.RefObject<HTMLDivElement | null> }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [snap, setSnap] = useState(false);
   useEffect(() => {
-    const v = ref.current;
-    if (!v) return;
-    v.muted = true;
-    v.setAttribute('muted', '');
-    v.play().catch(() => undefined);
-  }, []);
+    const draw = () => {
+      const v = stage.current?.querySelector('video');
+      const c = canvas.current;
+      if (!v || !c || v.readyState < 2 || document.hidden) return;
+      try {
+        c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height);
+        setSnap(true);
+      } catch {
+        /* video not drawable: the cover photo stays */
+      }
+    };
+    const first = window.setTimeout(draw, 1200);
+    const timer = window.setInterval(draw, 4000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+    };
+  }, [stage]);
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden>
-      {store.heroVideoUrl && !saver ? (
-        <video ref={ref} src={store.heroVideoUrl} muted loop playsInline autoPlay preload="metadata" className="size-full scale-125 object-cover opacity-45 blur-3xl saturate-150" />
-      ) : store.heroImageUrl ? (
-        <img src={store.heroImageUrl} alt="" className="size-full scale-125 object-cover opacity-40 blur-3xl saturate-150" />
-      ) : null}
-      {/* depth: dark edges, readable left side, fades into the page below */}
+      {store.heroImageUrl && <img src={store.heroImageUrl} alt="" className={`absolute inset-0 size-full scale-125 object-cover blur-2xl saturate-150 transition-opacity duration-1000 ${snap ? 'opacity-0' : 'opacity-40'}`} />}
+      {/* 18×32 pixels, stretched: the GPU smooths it into soft colour — no expensive blur filter needed */}
+      <canvas ref={canvas} width={18} height={32} className={`absolute inset-0 size-full scale-125 blur-2xl saturate-150 transition-opacity duration-1000 ${snap ? 'opacity-50' : 'opacity-0'}`} />
       <div className="absolute inset-0 bg-[radial-gradient(70%_80%_at_62%_45%,transparent,rgba(13,16,21,0.75)_70%,#0d1015)]" />
       <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/70 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-ink to-transparent" />
@@ -62,7 +74,7 @@ function FloatingPiece({ product, className, rotate, delay }: { product: Product
       <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 6 + delay * 2, repeat: Infinity, ease: 'easeInOut' }}>
         <Link
           to={`/p/${product.slug}`}
-          className="group block overflow-hidden rounded-2xl border border-white/10 bg-wool/70 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur-md transition-transform duration-500 hover:-translate-y-1"
+          className="group block overflow-hidden rounded-2xl border border-white/10 bg-wool shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] transition-transform duration-500 hover:-translate-y-1"
         >
           <Img urls={product.images[0]?.urls} alt={pick(product.nameEn, product.nameAm)} sizes="220px" className="aspect-[4/5] w-full transition-transform duration-700 group-hover:scale-[1.04]" />
           <div className="flex items-end justify-between gap-2 px-3.5 py-3">
@@ -82,11 +94,12 @@ export function DesktopHero({ store, products, categories, video }: { store?: St
   const { t, pick } = useT();
   const pieces = products.filter((p) => p.images.length).slice(0, 2);
   const hasMedia = Boolean(store?.heroVideoUrl || store?.heroImageUrl);
+  const stageRef = useRef<HTMLDivElement>(null);
   const strip = categories.length ? categories.map((c) => pick(c.nameEn, c.nameAm)) : ['Suits', 'Shirts', 'Shoes', 'Perfume', 'Jackets'];
 
   return (
     <div className="stay-dark relative isolate hidden min-h-[88svh] overflow-hidden bg-ink text-chalk md:block">
-      {store && <Ambient store={store} />}
+      {store && <Ambient store={store} stage={stageRef} />}
 
       <div className="mx-auto grid min-h-[calc(88svh-3.5rem)] max-w-7xl grid-cols-[0.9fr_1.1fr] items-center gap-6 px-8 py-14">
         {/* Words */}
@@ -101,15 +114,24 @@ export function DesktopHero({ store, products, categories, video }: { store?: St
               {t('hero.cta')} <ArrowRight className="size-4" />
             </Link>
             {store?.tikTokHandle && (
-              <button
-                onClick={() => openExternal(`https://www.tiktok.com/@${store.tikTokHandle}`)}
-                className="inline-flex h-14 items-center gap-2.5 rounded-full border border-white/15 px-6 text-sm font-semibold backdrop-blur transition-colors hover:border-white/40"
+              <a
+                href={`https://www.tiktok.com/@${store.tikTokHandle}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  // Website: a plain link (the browser opens the tab, no page work). Telegram: its own browser.
+                  if (isMiniApp) {
+                    e.preventDefault();
+                    openExternal(`https://www.tiktok.com/@${store.tikTokHandle}`);
+                  }
+                }}
+                className="inline-flex h-14 items-center gap-2.5 rounded-full border border-white/15 px-6 text-sm font-semibold transition-colors hover:border-white/40"
               >
                 <span className="grid size-7 place-items-center rounded-full bg-chalk text-ink">
                   <Play className="ml-0.5 size-3.5 fill-ink" />
                 </span>
                 {t('hero.watch')}
-              </button>
+              </a>
             )}
           </div>
           <ul className="mt-10 flex flex-wrap gap-x-6 gap-y-2 text-sm text-chalk/60">
@@ -129,7 +151,7 @@ export function DesktopHero({ store, products, categories, video }: { store?: St
         </motion.div>
 
         {/* Stage */}
-        <div className="relative flex h-[74svh] max-h-[780px] items-center justify-center">
+        <div ref={stageRef} className="relative flex h-[74svh] max-h-[780px] items-center justify-center">
           <Mark className="absolute left-1/2 top-1/2 w-[110%] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-[0.05]" fill="transparent" stroke="#B98B57" />
           {store && hasMedia ? (
             <motion.div
@@ -151,7 +173,7 @@ export function DesktopHero({ store, products, categories, video }: { store?: St
       </div>
 
       {/* Tape-measure strip of the categories */}
-      <div className="absolute inset-x-0 bottom-0 overflow-hidden border-t border-white/10 bg-ink/60 backdrop-blur">
+      <div className="absolute inset-x-0 bottom-0 overflow-hidden border-t border-white/10 bg-ink/90">
         <div className="flex w-max animate-[hikma-marquee_40s_linear_infinite] items-center py-3.5 hover:[animation-play-state:paused]">
           {[0, 1].map((copy) => (
             <div key={copy} className="flex items-center" aria-hidden={copy === 1}>

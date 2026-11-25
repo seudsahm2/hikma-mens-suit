@@ -227,7 +227,9 @@ export function openExternal(url: string) {
     if (url.startsWith('https://t.me/')) tg.openTelegramLink(url);
     else tg.openLink(url);
   } else {
-    window.open(url, '_blank', 'noopener');
+    // Opening a tab is slow and blocks the page; let the browser paint the tap first, then open it
+    // (still within the click's "user activation", so popup blockers allow it).
+    requestAnimationFrame(() => setTimeout(() => window.open(url, '_blank', 'noopener'), 0));
   }
 }
 
