@@ -1,4 +1,6 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
+import { lazyRetry } from './lib/lazy';
+import { RouteError } from './components/layout/RouteError';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router';
 import { AppShell } from './components/layout/AppShell';
 import { PageLoader } from './components/ui';
@@ -12,17 +14,17 @@ import { captureInviteCode, useAttachInvite } from './components/checkout/Offers
 import { useWishlistSync } from './store/wishlist';
 import Home from './pages/Home';
 
-const Shop = lazy(() => import('./pages/Shop'));
-const ProductPage = lazy(() => import('./pages/Product'));
-const Bag = lazy(() => import('./pages/Bag'));
-const Checkout = lazy(() => import('./pages/Checkout'));
-const OrdersPage = lazy(() => import('./pages/Orders').then((m) => ({ default: m.OrdersPage })));
-const AccountPage = lazy(() => import('./pages/Account'));
-const SavedPage = lazy(() => import('./pages/Saved'));
-const OrderPage = lazy(() => import('./pages/Orders').then((m) => ({ default: m.OrderPage })));
-const InfoPage = lazy(() => import('./pages/Info').then((m) => ({ default: m.InfoPage })));
-const NotFound = lazy(() => import('./pages/Info').then((m) => ({ default: m.NotFound })));
-const AdminApp = lazy(() => import('./admin/AdminApp'));
+const Shop = lazyRetry(() => import('./pages/Shop'));
+const ProductPage = lazyRetry(() => import('./pages/Product'));
+const Bag = lazyRetry(() => import('./pages/Bag'));
+const Checkout = lazyRetry(() => import('./pages/Checkout'));
+const OrdersPage = lazyRetry(() => import('./pages/Orders').then((m) => ({ default: m.OrdersPage })));
+const AccountPage = lazyRetry(() => import('./pages/Account'));
+const SavedPage = lazyRetry(() => import('./pages/Saved'));
+const OrderPage = lazyRetry(() => import('./pages/Orders').then((m) => ({ default: m.OrderPage })));
+const InfoPage = lazyRetry(() => import('./pages/Info').then((m) => ({ default: m.InfoPage })));
+const NotFound = lazyRetry(() => import('./pages/Info').then((m) => ({ default: m.NotFound })));
+const AdminApp = lazyRetry(() => import('./admin/AdminApp'));
 
 const s = (el: React.ReactNode) => <Suspense fallback={<PageLoader />}>{el}</Suspense>;
 
@@ -34,9 +36,11 @@ const router = createBrowserRouter([
   {
     path: '/admin/*',
     element: s(<AdminApp />),
+    errorElement: <RouteError />,
   },
   {
     element: <AppShell />,
+    errorElement: <RouteError />,
     children: [
       { index: true, element: deepLink && window.location.pathname === '/' ? <Navigate to={deepLink} replace /> : <Home /> },
       { path: 'shop', element: s(<Shop />) },

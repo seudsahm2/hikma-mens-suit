@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState } from 'react';
+import { Suspense, useState } from 'react';
+import { lazyRetry } from '../lib/lazy';
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, ExternalLink, History, LifeBuoy, LineChart, LogOut, ReceiptText, Settings, Shirt, Star, Store, Tag, Users, UserCog } from 'lucide-react';
@@ -10,20 +11,20 @@ import type { User } from '../lib/types';
 import { useStaff } from '../store/auth';
 import { adminApi } from './ui';
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Orders = lazy(() => import('./pages/Orders'));
-const OrderDetail = lazy(() => import('./pages/OrderDetail'));
-const Products = lazy(() => import('./pages/Products'));
-const ProductEditor = lazy(() => import('./pages/ProductEditor'));
-const Customers = lazy(() => import('./pages/Customers'));
-const Counter = lazy(() => import('./pages/Counter'));
-const ReviewsPage = lazy(() => import('./pages/Reviews'));
-const PromotionsPage = lazy(() => import('./pages/Promotions'));
-const CarePage = lazy(() => import('./pages/Care'));
-const InsightsPage = lazy(() => import('./pages/Insights'));
-const ActivityPage = lazy(() => import('./pages/Activity'));
-const Staff = lazy(() => import('./pages/Staff'));
-const SettingsPage = lazy(() => import('./pages/Settings'));
+const Dashboard = lazyRetry(() => import('./pages/Dashboard'));
+const Orders = lazyRetry(() => import('./pages/Orders'));
+const OrderDetail = lazyRetry(() => import('./pages/OrderDetail'));
+const Products = lazyRetry(() => import('./pages/Products'));
+const ProductEditor = lazyRetry(() => import('./pages/ProductEditor'));
+const Customers = lazyRetry(() => import('./pages/Customers'));
+const Counter = lazyRetry(() => import('./pages/Counter'));
+const ReviewsPage = lazyRetry(() => import('./pages/Reviews'));
+const PromotionsPage = lazyRetry(() => import('./pages/Promotions'));
+const CarePage = lazyRetry(() => import('./pages/Care'));
+const InsightsPage = lazyRetry(() => import('./pages/Insights'));
+const ActivityPage = lazyRetry(() => import('./pages/Activity'));
+const Staff = lazyRetry(() => import('./pages/Staff'));
+const SettingsPage = lazyRetry(() => import('./pages/Settings'));
 
 function Login() {
   const setSession = useStaff((s) => s.setSession);

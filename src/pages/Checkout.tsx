@@ -104,6 +104,7 @@ export default function Checkout() {
   const [landmark, setLandmark] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [placeLabel, setPlaceLabel] = useState<string | null>(null);
+  const [fix, setFix] = useState<{ accuracy: number | null; source: 'gps' | 'telegram' } | null>(null);
   const [locating, setLocating] = useState(false);
   const [methodId, setMethodId] = useState<string | null>(null);
   const [deposit, setDeposit] = useState(false);
@@ -154,7 +155,7 @@ export default function Checkout() {
   };
 
   // Share GPS location, then show the place name and fill the address fields from it
-  // (Inside Telegram this goes through Telegram's own location permission.)
+  // Fresh device GPS first (never a cached position); Telegram's stored location only as a backup.
   const addLocation = async () => {
     setLocating(true);
     const loc = await getLocation();
@@ -170,6 +171,8 @@ export default function Checkout() {
     }
     const c = { lat: loc.lat, lng: loc.lng };
     setCoords(c);
+    setFix({ accuracy: loc.accuracy, source: loc.source });
+    setPlaceLabel(null);
     haptic.success();
     try {
       const { place } = await api<{ place: { label: string; area: string | null; landmark: string | null } | null }>('/geo/reverse', {
@@ -189,6 +192,7 @@ export default function Checkout() {
   const removeLocation = () => {
     setCoords(null);
     setPlaceLabel(null);
+    setFix(null);
   };
 
   const validate = () => {
@@ -320,10 +324,24 @@ export default function Checkout() {
                       {t('checkout.viewMap')}
                     </a>
                   </p>
+                  {fix && !locating && (
+                    <p className={cn('mt-1 text-[0.7rem]', fix.source === 'telegram' || (fix.accuracy ?? 0) > 150 ? 'text-camel' : 'text-ok')}>
+                      {fix.source === 'telegram'
+                        ? t('checkout.locationFromTelegram')
+                        : (fix.accuracy ?? 0) > 150
+                          ? t('checkout.locationRough', { m: fix.accuracy ?? 0 })
+                          : t('checkout.locationPrecise', { m: fix.accuracy ?? 0 })}
+                    </p>
+                  )}
                 </div>
-                <button type="button" onClick={removeLocation} className="shrink-0 text-xs text-steel underline underline-offset-2 hover:text-chalk">
-                  {t('checkout.removeLocation')}
-                </button>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <button type="button" onClick={addLocation} disabled={locating} className="text-xs text-camel underline underline-offset-2 disabled:opacity-50">
+                    {t('checkout.locationUpdate')}
+                  </button>
+                  <button type="button" onClick={removeLocation} className="text-xs text-steel underline underline-offset-2 hover:text-chalk">
+                    {t('checkout.removeLocation')}
+                  </button>
+                </div>
               </div>
             ) : (
               <button
