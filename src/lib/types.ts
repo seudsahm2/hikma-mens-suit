@@ -205,6 +205,8 @@ export interface Order {
   id: string;
   orderNumber: string;
   status: OrderStatus;
+  /** staff only: a cancel waiting to take effect (undo window) */
+  cancelAt?: string | null;
   paymentStatus: PaymentStatus;
   source: 'WEB' | 'MINI_APP' | 'ADMIN' | 'COUNTER';
   customerName: string;

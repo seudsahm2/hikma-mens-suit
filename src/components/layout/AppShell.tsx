@@ -15,25 +15,31 @@ import { useTheme } from '../../store/theme';
 import { useWishlist } from '../../store/wishlist';
 import { Avatar } from './Avatar';
 
-function LangToggle() {
+/**
+ * Language + light/dark in one pill (one item in the top bar instead of two), on phones and desktop.
+ * The account page keeps the full theme choice too.
+ */
+function DisplayPill() {
   const { lang, setLang } = useLang();
-  return (
-    <button
-      onClick={() => setLang(lang === 'am' ? 'en' : 'am')}
-      className="h-9 rounded-full border border-seam px-3 font-mono text-[0.7rem] tracking-widest text-steel transition-colors hover:text-chalk"
-      aria-label={lang === 'am' ? 'Switch to English' : 'ወደ አማርኛ ቀይር'}
-    >
-      {lang === 'am' ? 'EN' : 'አማ'}
-    </button>
-  );
-}
-
-function ThemeToggle({ className }: { className?: string }) {
   const { theme, toggle } = useTheme();
   return (
-    <button onClick={toggle} className={cn('grid size-10 place-items-center rounded-full text-steel transition-colors hover:bg-wool-2 hover:text-chalk', className)} aria-label={theme === 'dark' ? 'Light mode' : 'Dark mode'}>
-      {theme === 'dark' ? <Sun className="size-[1.2rem]" strokeWidth={1.6} /> : <Moon className="size-[1.2rem]" strokeWidth={1.6} />}
-    </button>
+    <div className="flex h-9 items-center rounded-full border border-seam text-steel">
+      <button
+        onClick={() => setLang(lang === 'am' ? 'en' : 'am')}
+        className="h-full rounded-l-full pl-2.5 pr-2 font-mono text-[0.7rem] tracking-widest transition-colors hover:text-chalk"
+        aria-label={lang === 'am' ? 'Switch to English' : 'ወደ አማርኛ ቀይር'}
+      >
+        {lang === 'am' ? 'EN' : 'አማ'}
+      </button>
+      <span className="h-4 w-px bg-seam" aria-hidden />
+      <button
+        onClick={toggle}
+        className="grid h-full place-items-center rounded-r-full pl-1.5 pr-2.5 transition-colors hover:text-chalk"
+        aria-label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      >
+        {theme === 'dark' ? <Sun className="size-4" strokeWidth={1.7} /> : <Moon className="size-4" strokeWidth={1.7} />}
+      </button>
+    </div>
   );
 }
 
@@ -125,8 +131,7 @@ function Header() {
           </Link>
           <SavedLink />
           <BagLink className="hidden md:grid" />
-          <ThemeToggle className="hidden md:grid" />
-          <LangToggle />
+          <DisplayPill />
           <AccountButton />
         </div>
       </div>

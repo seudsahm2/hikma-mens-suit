@@ -8,6 +8,7 @@ import { ApiError } from '../../lib/api';
 import { birr, formatDateTime } from '../../lib/format';
 import type { Order, OrderStatus } from '../../lib/types';
 import { adminApi, PageHeader, PaymentBadge, StatusBadge, Tabs } from '../ui';
+import { CancelCountdown } from './CancelCountdown';
 
 type Tab = 'open' | 'review' | 'all' | 'done' | 'cancelled';
 
@@ -89,6 +90,7 @@ export default function Orders() {
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-sm">{o.orderNumber}</span>
                     <StatusBadge status={o.status} />
+                    {o.cancelAt && <CancelCountdown compact order={o as Order & { cancelAt: string }} />}
                   </div>
                   <div className="mt-2 flex items-center justify-between text-sm">
                     <span className="truncate">{o.customerName}</span>
@@ -159,6 +161,7 @@ export default function Orders() {
                     </td>
                     <td>
                       <StatusBadge status={o.status} />
+                    {o.cancelAt && <CancelCountdown compact order={o as Order & { cancelAt: string }} />}
                       <div className="mt-0.5 text-xs text-steel">{o.delivery.label}</div>
                     </td>
                     <td className="text-right font-mono">{birr(o.total)}</td>
@@ -192,7 +195,7 @@ export default function Orders() {
 
 /** The single next step for an order, right in the list. Everything else is on the order page. */
 function nextStep(o: Order): { label: string; run: () => Promise<unknown> } | null {
-  if (o.status === 'CANCELLED' || o.status === 'DELIVERED' || o.status === 'PICKED_UP') return null;
+  if (o.cancelAt || o.status === 'CANCELLED' || o.status === 'DELIVERED' || o.status === 'PICKED_UP') return null;
   const status = (s: OrderStatus) => () => adminApi(`/orders/${o.id}/status`, { method: 'PATCH', body: { status: s } });
   if (o.paymentStatus === 'SUBMITTED') {
     return { label: 'Confirm payment', run: () => adminApi(`/orders/${o.id}/payment`, { method: 'PATCH', body: { approve: true } }) };

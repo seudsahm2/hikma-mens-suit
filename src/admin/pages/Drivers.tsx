@@ -269,7 +269,7 @@ export function DriverCard({ order, onChange }: { order: Order; onChange: (o: Or
             <p className="flex items-center gap-2 text-sm text-ok">
               <Check className="size-4" /> <b>{o.driverName}</b> accepted · at the shop in ~{o.etaMinutes} min
             </p>
-            <Button variant="accent" block className="mt-4" loading={hand.isPending} onClick={() => hand.mutate()}>
+            <Button variant="accent" block className="mt-4" loading={hand.isPending} onClick={() => window.confirm(`Does ${o.driverName} have the items? The customer gets their delivery code now.`) && hand.mutate()}>
               <Package className="size-4" /> Handed to {o.driverName.split(' ')[0]} — start delivery
             </Button>
             <p className="mt-2 text-xs text-steel">Tap when the driver has the items. The customer then gets the delivery code.</p>

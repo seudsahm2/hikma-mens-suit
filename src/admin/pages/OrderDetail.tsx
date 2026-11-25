@@ -10,6 +10,7 @@ import type { Order, OrderStatus } from '../../lib/types';
 import { adminApi, Card, PaymentBadge, StatusBadge, statusLabel } from '../ui';
 import { DriverCard } from './Drivers';
 import { ConfirmDelivered } from './ConfirmDelivered';
+import { CancelCountdown } from './CancelCountdown';
 
 /**
  * One step at a time (same rule as the server and the Telegram cards). "On the way" isn't here for
@@ -48,7 +49,7 @@ export default function OrderDetail() {
 
   const status = useMutation({
     mutationFn: (s: OrderStatus) => adminApi<{ order: Order }>(`/orders/${id}/status`, { method: 'PATCH', body: { status: s } }),
-    onSuccess: (r, s) => onDone(r.order, `Marked ${statusLabel(s).toLowerCase()}`),
+    onSuccess: (r, s) => onDone(r.order, s === 'CANCELLED' ? 'Cancelling in 3 min — you can still undo it' : `Marked ${statusLabel(s).toLowerCase()}`),
     onError,
   });
   const payment = useMutation({
@@ -206,7 +207,7 @@ export default function OrderDetail() {
                     Confirm payment
                   </Button>
                   {order.paymentStatus === 'SUBMITTED' && (
-                    <Button variant="danger" loading={payment.isPending && !payment.variables} onClick={() => payment.mutate(false)}>
+                    <Button variant="danger" loading={payment.isPending && !payment.variables} onClick={() => window.confirm('Reject this payment? The customer is asked to send it again.') && payment.mutate(false)}>
                       Reject
                     </Button>
                   )}
@@ -257,7 +258,11 @@ export default function OrderDetail() {
 
           <DriverCard order={order} onChange={(o) => onDone(o, 'Saved')} />
 
-          {open && (
+          {open && order.cancelAt && (
+            <CancelCountdown order={order as Order & { cancelAt: string }} onChange={(o) => qc.setQueryData(['admin', 'order', id], o)} />
+          )}
+
+          {open && !order.cancelAt && (
             <Card title="Update status">
               <div className="flex flex-wrap gap-2">
                 {next.map((s) => (
@@ -280,7 +285,7 @@ export default function OrderDetail() {
                 <Button
                   variant="danger"
                   size="sm"
-                  onClick={() => window.confirm('Cancel this order? Stock goes back on sale.') && status.mutate('CANCELLED')}
+                  onClick={() => window.confirm('Cancel this order? You’ll have 3 minutes to undo it — the customer and driver are only told after that.') && status.mutate('CANCELLED')}
                 >
                   Cancel order
                 </Button>

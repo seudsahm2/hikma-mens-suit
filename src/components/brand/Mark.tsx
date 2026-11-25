@@ -83,7 +83,7 @@ export function Wordmark({ className }: { className?: string }) {
       <Mark className="size-8" ring="#262C35" />
       <span className="leading-none">
         <span className="display block text-[0.95rem] tracking-[0.02em]">Hikma</span>
-        <span className="label block !text-[0.55rem] !tracking-[0.3em]">Men’s fashion</span>
+        <span className="label block whitespace-nowrap !text-[0.55rem] !tracking-[0.3em]">Men’s fashion</span>
       </span>
     </span>
   );
