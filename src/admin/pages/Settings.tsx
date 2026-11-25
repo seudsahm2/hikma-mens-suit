@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -30,6 +30,9 @@ import type { StoreSettings } from '../../lib/types';
 import { adminApi } from '../ui';
 import { api } from '../../lib/api';
 import { DriversSection } from './Drivers';
+
+// The map (Leaflet) loads only when the Shop section opens
+const ShopLocationPicker = lazy(() => import('./ShopLocationPicker').then((m) => ({ default: m.ShopLocationPicker })));
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -678,10 +681,6 @@ function ShopTab({ data }: { data: SettingsResponse }) {
   useEffect(() => setF(pickShop(data.settings)), [data.settings]);
   const set = <K extends keyof ShopForm>(k: K, v: ShopForm[K]) => setF((p) => ({ ...p, [k]: v }));
   const dirty = JSON.stringify(f) !== JSON.stringify(pickShop(data.settings));
-  // The pin is typed/pasted as text ("9.01, 38.74"); keep the text so typing isn't interrupted
-  const pinOf = (x: ShopForm) => (x.mapLat !== null && x.mapLng !== null ? `${x.mapLat}, ${x.mapLng}` : '');
-  const [pin, setPin] = useState(() => pinOf(pickShop(data.settings)));
-  useEffect(() => setPin(pinOf(pickShop(data.settings))), [data.settings]);
 
   return (
     <div className="space-y-8 pb-24">
@@ -697,18 +696,9 @@ function ShopTab({ data }: { data: SettingsResponse }) {
       <Fieldset title="Where the shop is">
         <Input name="addressEn" label="Address" value={f.addressEn} onChange={(e) => set('addressEn', e.target.value)} />
         <Input name="addressAm" label="Address in Amharic" value={f.addressAm} onChange={(e) => set('addressAm', e.target.value)} />
-        <Input
-          name="map"
-          label="Map pin"
-          placeholder="9.0123, 38.7456"
-          value={pin}
-          onChange={(e) => {
-            setPin(e.target.value);
-            const m = e.target.value.match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
-            setF((p) => ({ ...p, mapLat: m ? Number(m[1]) : null, mapLng: m ? Number(m[2]) : null }));
-          }}
-          hint="Google Maps → press and hold on the shop → tap the numbers to copy → paste here"
-        />
+        <Suspense fallback={<div className="h-80 animate-pulse rounded-2xl bg-wool-2" />}>
+          <ShopLocationPicker lat={f.mapLat} lng={f.mapLng} onChange={(mapLat, mapLng) => setF((p) => ({ ...p, mapLat, mapLng }))} />
+        </Suspense>
       </Fieldset>
 
       <Fieldset title="Message at the top of the shop">
@@ -751,7 +741,6 @@ function ShopTab({ data }: { data: SettingsResponse }) {
                 variant="ghost"
                 onClick={() => {
                   setF(pickShop(data.settings));
-                  setPin(pinOf(pickShop(data.settings)));
                 }}
               >
                 Undo
