@@ -596,28 +596,7 @@ function TelegramTab({ data }: { data: SettingsResponse }) {
       </div>
 
       <Group title="You">
-        <Row
-          icon={<Tile tone="camel"><UserRound className="size-4" /></Tile>}
-          title="Your Telegram"
-          desc="Connect it so what you tap on order cards is recorded as you (tap Start in the bot)"
-          right={
-            <button
-              onClick={async () => {
-                const tab = window.open('', '_blank');
-                try {
-                  const r = await api<{ url: string }>('/auth/staff-telegram', { method: 'POST', auth: 'staff' });
-                  if (tab) tab.location.href = r.url;
-                  else window.location.href = r.url;
-                } catch {
-                  tab?.close();
-                }
-              }}
-              className="rounded-full border border-camel/50 px-3 py-1.5 text-sm text-camel hover:bg-camel/10"
-            >
-              Connect →
-            </button>
-          }
-        />
+        <MyTelegram />
       </Group>
 
       <Group title="Automatic">
@@ -888,5 +867,53 @@ export default function SettingsPage() {
       {tab === 'shop' && <ShopTab data={data} />}
       {tab === 'home' && <HomeTab data={data} />}
     </div>
+  );
+}
+
+/** The owner's/admin's own Telegram: shows who is connected, Connect / Change / Disconnect. */
+function MyTelegram() {
+  const q = useQuery({
+    queryKey: ['admin', 'my-telegram'],
+    queryFn: () => api<{ connected: boolean; name?: string; username?: string | null }>('/auth/staff-telegram', { auth: 'staff' }),
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) => (query.state.data?.connected ? false : 4000), // picks up "Start" in the bot by itself
+  });
+  const connect = async () => {
+    const tab = window.open('', '_blank');
+    try {
+      const r = await api<{ url: string }>('/auth/staff-telegram', { method: 'POST', auth: 'staff' });
+      if (tab) tab.location.href = r.url;
+      else window.location.href = r.url;
+    } catch {
+      tab?.close();
+    }
+  };
+  const disconnect = async () => {
+    await api('/auth/staff-telegram', { method: 'DELETE', auth: 'staff' });
+    void q.refetch();
+  };
+  const d = q.data;
+  return (
+    <Row
+      icon={<Tile tone={d?.connected ? 'camel' : 'steel'}><UserRound className="size-4" /></Tile>}
+      title="Your Telegram"
+      desc={
+        d?.connected
+          ? `Connected as ${d.name}${d.username ? ' · @' + d.username : ''}. Wrong account? Switch account in Telegram, then Change.`
+          : 'Connect it so what you tap on order cards is recorded as you. Check which account is open in Telegram first.'
+      }
+      right={
+        <div className="flex shrink-0 gap-2">
+          <button onClick={connect} className="rounded-full border border-camel/50 px-3 py-1.5 text-sm text-camel hover:bg-camel/10">
+            {d?.connected ? 'Change' : 'Connect →'}
+          </button>
+          {d?.connected && (
+            <button onClick={disconnect} className="rounded-full px-3 py-1.5 text-sm text-steel hover:text-chalk">
+              Disconnect
+            </button>
+          )}
+        </div>
+      }
+    />
   );
 }
