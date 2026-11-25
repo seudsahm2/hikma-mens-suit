@@ -9,7 +9,9 @@ import { useCategories, useConfig, useProducts } from '../hooks/queries';
 import { useT } from '../lib/i18n';
 import { cn } from '../lib/format';
 import { openExternal } from '../lib/telegram';
-import type { StoreSettings } from '../lib/types';
+import type { Category, ProductCard, StoreSettings } from '../lib/types';
+import { DesktopHero } from '../components/home/DesktopHero';
+import { SoundToggle, useHeroSound, videoHasAudio } from '../components/home/heroSound';
 import { useDataSaver } from '../store/dataSaver';
 
 /**
@@ -24,6 +26,8 @@ function HeroMedia({ store, className }: { store: StoreSettings; className: stri
   const ref = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
+  const muted = useHeroSound((s) => s.muted);
+  const setHasAudio = useHeroSound((s) => s.setHasAudio);
   const useVideo = Boolean(store.heroVideoUrl) && !(saver && store.heroImageUrl) && !failed;
 
   useEffect(() => {
@@ -47,6 +51,14 @@ function HeroMedia({ store, className }: { store: StoreSettings; className: stri
     };
   }, [useVideo, store.heroVideoUrl]);
 
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    const visible = v.offsetParent !== null; // phone and desktop layouts both exist; one is hidden
+    v.muted = muted || !visible;
+    if (!v.muted) v.play().catch(() => undefined);
+  }, [muted, playing]);
+
   return (
     <div className={cn('overflow-hidden', className)}>
       {store.heroImageUrl ? (
@@ -69,6 +81,14 @@ function HeroMedia({ store, className }: { store: StoreSettings; className: stri
           preload="auto"
           disablePictureInPicture
           onPlaying={() => setPlaying(true)}
+          // Does it have a sound track? Browsers only know once some of it has played — keep checking
+          // while it plays (cheap), until the answer is yes. Browsers that can't tell: assume yes.
+          onTimeUpdate={(e) => {
+            const v = e.currentTarget;
+            if (useHeroSound.getState().hasAudio || v.offsetParent === null || v.currentTime < 0.5) return;
+            const audio = videoHasAudio(v);
+            if (audio !== false) setHasAudio(true);
+          }}
           onError={() => setFailed(true)}
           aria-hidden
         />
@@ -81,7 +101,7 @@ function HeroMedia({ store, className }: { store: StoreSettings; className: stri
  * Phones: the shop's (vertical) video fills the screen behind the headline.
  * Desktop: headline left, video framed on the right — vertical clips never get stretched and blurred.
  */
-function Hero({ store }: { store?: StoreSettings }) {
+function Hero({ store, products, categories }: { store?: StoreSettings; products: ProductCard[]; categories: Category[] }) {
   const { t } = useT();
   const hasMedia = Boolean(store?.heroVideoUrl || store?.heroImageUrl);
 
@@ -108,25 +128,12 @@ function Hero({ store }: { store?: StoreSettings }) {
           </div>
         )}
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/50 to-ink/10" />
+        <SoundToggle className="absolute right-4 top-4" />
         <div className="px-4 pb-10">{headline}</div>
       </div>
 
-      {/* Desktop layout */}
-      <div className="mx-auto hidden min-h-[82svh] max-w-7xl grid-cols-[1.15fr_1fr] items-center gap-12 px-8 py-12 md:grid">
-        {headline}
-        <div className="relative flex justify-end">
-          {/* the collar mark, large and quiet, behind the frame */}
-          <Mark className="absolute -left-10 top-1/2 w-[120%] max-w-none -translate-y-1/2 opacity-[0.06]" fill="transparent" stroke="#B98B57" />
-          {store && hasMedia ? (
-            <div className="relative aspect-[9/16] h-[72svh] max-h-[760px] overflow-hidden rounded-[28px] border border-seam shadow-[0_40px_120px_-40px_rgba(185,139,87,0.45)]">
-              <HeroMedia store={store} className="relative size-full" />
-              <div className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-inset ring-white/10" />
-            </div>
-          ) : (
-            <Mark draw className="relative w-[420px] opacity-25" fill="transparent" stroke="#B98B57" />
-          )}
-        </div>
-      </div>
+      {/* Desktop: editorial cover (components/home/DesktopHero) */}
+      <DesktopHero store={store} products={products} categories={categories} video={store ? <HeroMedia store={store} className="relative size-full" /> : null} />
     </section>
   );
 }
@@ -241,12 +248,13 @@ export default function Home() {
   const { t } = useT();
   const { data: config } = useConfig();
   const newIn = useProducts({ new: true, sort: 'new', limit: 10 });
+  const heroCats = useCategories();
   const picks = useProducts({ featured: true, sort: 'featured', limit: 8 });
   const perfume = useProducts({ category: 'perfumes', sort: 'new', limit: 10 });
 
   return (
     <>
-      <Hero store={config?.store} />
+      <Hero store={config?.store} products={newIn.data?.products ?? []} categories={heroCats.data ?? []} />
       <div className="mx-auto max-w-7xl space-y-16 px-4 pt-8 md:space-y-24 md:px-8">
         <CategoryRail />
 
