@@ -21,7 +21,6 @@ import {
   Truck,
   Upload,
   Wallet,
-  UserRound,
 } from 'lucide-react';
 import { Button, Input, PageLoader, Sheet, Textarea } from '../../components/ui';
 import { toast } from '../../components/ui/toast';
@@ -874,7 +873,7 @@ export default function SettingsPage() {
 function MyTelegram() {
   const q = useQuery({
     queryKey: ['admin', 'my-telegram'],
-    queryFn: () => api<{ connected: boolean; name?: string; username?: string | null }>('/auth/staff-telegram', { auth: 'staff' }),
+    queryFn: () => api<{ connected: boolean; name?: string; username?: string | null; photo?: string | null }>('/auth/staff-telegram', { auth: 'staff' }),
     refetchOnWindowFocus: true,
     refetchInterval: (query) => (query.state.data?.connected ? false : 4000), // picks up "Start" in the bot by itself
   });
@@ -893,27 +892,54 @@ function MyTelegram() {
     void q.refetch();
   };
   const d = q.data;
+  const btn = 'h-10 flex-1 rounded-full text-sm font-medium transition-colors sm:flex-none sm:px-5';
   return (
-    <Row
-      icon={<Tile tone={d?.connected ? 'camel' : 'steel'}><UserRound className="size-4" /></Tile>}
-      title="Your Telegram"
-      desc={
-        d?.connected
-          ? `Connected as ${d.name}${d.username ? ' · @' + d.username : ''}. Wrong account? Switch account in Telegram, then Change.`
-          : 'Connect it so what you tap on order cards is recorded as you. Check which account is open in Telegram first.'
-      }
-      right={
-        <div className="flex shrink-0 gap-2">
-          <button onClick={connect} className="rounded-full border border-camel/50 px-3 py-1.5 text-sm text-camel hover:bg-camel/10">
-            {d?.connected ? 'Change' : 'Connect →'}
-          </button>
-          {d?.connected && (
-            <button onClick={disconnect} className="rounded-full px-3 py-1.5 text-sm text-steel hover:text-chalk">
-              Disconnect
-            </button>
-          )}
+    <div className="p-4">
+      {d?.connected ? (
+        <div className="flex items-center gap-3">
+          <div className="relative shrink-0">
+            {d.photo ? (
+              <img src={d.photo} alt="" className="size-12 rounded-full object-cover ring-2 ring-camel/40" />
+            ) : (
+              <span className="grid size-12 place-items-center rounded-full bg-camel font-display text-lg font-bold text-ink">{d.name?.slice(0, 1)}</span>
+            )}
+            <span className="absolute -bottom-0.5 -right-0.5 grid size-5 place-items-center rounded-full bg-[#2AABEE] ring-2 ring-wool">
+              <Send className="size-2.5 text-white" />
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{d.name}</p>
+            {d.username ? (
+              <a href={`https://t.me/${d.username}`} target="_blank" rel="noreferrer" className="block truncate text-sm text-[#2AABEE]">
+                @{d.username}
+              </a>
+            ) : (
+              <p className="text-sm text-steel">Telegram</p>
+            )}
+          </div>
+          <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[0.7rem] font-medium text-emerald-400">Connected</span>
         </div>
-      }
-    />
+      ) : (
+        <div className="flex items-center gap-3">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-wool-2 text-steel">
+            <Send className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-medium">Your Telegram</p>
+            <p className="text-sm text-steel">Order-card taps are recorded as you. Check which account is open in Telegram first.</p>
+          </div>
+        </div>
+      )}
+      <div className="mt-4 flex gap-2">
+        <button onClick={connect} className={cn(btn, d?.connected ? 'border border-seam text-chalk hover:bg-wool-2' : 'bg-camel text-ink hover:bg-camel-soft')}>
+          {d?.connected ? 'Change account' : 'Connect Telegram'}
+        </button>
+        {d?.connected && (
+          <button onClick={disconnect} className={cn(btn, 'text-steel hover:text-red-400')}>
+            Disconnect
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
