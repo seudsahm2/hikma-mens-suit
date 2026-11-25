@@ -1,6 +1,7 @@
 /** Delivery people: add, connect to Telegram, assign to orders. */
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router';
 import { Bike, Check, Copy, MapPin, Package, Phone, Plus, Zap } from 'lucide-react';
 import { Button, Input } from '../../components/ui';
 import { toast } from '../../components/ui/toast';
@@ -18,6 +19,8 @@ export interface DriverRow {
   linkCode: string | null;
   isOnline: boolean;
   busy: boolean;
+  /** the order keeping the driver busy */
+  busyWith?: { id: string; orderNumber: string } | null;
   /** location shared in the last 30 minutes */
   live: boolean;
   distanceKm: number | null;
@@ -31,7 +34,7 @@ export interface DriverRow {
 export function driverStatus(d: DriverRow) {
   if (!d.linked) return { text: 'Not connected', tone: 'text-camel' };
   if (!d.isOnline) return { text: 'Offline', tone: 'text-steel' };
-  if (d.busy) return { text: 'Busy with a delivery', tone: 'text-camel' };
+  if (d.busy) return { text: d.busyWith ? `Busy · ${d.busyWith.orderNumber}` : 'Busy with a delivery', tone: 'text-camel' };
   const where = d.distanceKm !== null ? ` · ${d.distanceKm} km from the shop${d.live ? '' : ' (old)'}` : ' · location not shared';
   return { text: `Available${where}`, tone: 'text-ok' };
 }
@@ -85,7 +88,14 @@ export function DriversSection({ botUsername }: { botUsername: string }) {
                 <span className="block font-mono text-xs text-steel">{d.phone}</span>
               </span>
               <span className={cn('text-right text-xs', driverStatus(d).tone)}>
-                ● {driverStatus(d).text}
+                {d.busy && d.busyWith ? (
+                  // Tap through to the order keeping them busy (e.g. one left "On the way")
+                  <Link to={`/admin/orders/${d.busyWith.id}`} className="underline underline-offset-2">
+                    ● {driverStatus(d).text}
+                  </Link>
+                ) : (
+                  <>● {driverStatus(d).text}</>
+                )}
                 {d.mapUrl && (
                   <a href={d.mapUrl} target="_blank" rel="noreferrer" className="ml-2 text-steel underline underline-offset-2 hover:text-chalk">
                     map
