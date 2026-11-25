@@ -426,7 +426,8 @@ export default function ProductPage() {
             transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.3 }}
             className={cn(
               'fixed inset-x-3 z-40 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-seam bg-wool-2/95 p-3 shadow-2xl shadow-black/50 backdrop-blur md:inset-x-auto md:right-6 md:top-20 md:mx-0 md:w-96',
-              usesNativeButton ? 'bottom-4' : 'bottom-[calc(140px+env(safe-area-inset-bottom))] md:bottom-auto',
+              // Always above the tab bar (64px) — and above the sticky Add-to-bag bar (~81px) when it's shown
+              usesNativeButton ? 'bottom-[calc(76px+env(safe-area-inset-bottom))] md:bottom-auto' : 'bottom-[calc(158px+env(safe-area-inset-bottom))] md:bottom-auto',
             )}
           >
             {added.image ? <img src={added.image} alt="" className="aspect-[4/5] w-12 rounded-md object-cover" /> : null}
