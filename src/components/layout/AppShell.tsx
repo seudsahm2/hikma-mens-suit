@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { motion } from 'motion/react';
-import { Home, LayoutGrid, Moon, ReceiptText, Search, ShoppingBag, Sun, UserRound } from 'lucide-react';
+import { Heart, Home, LayoutGrid, Moon, ReceiptText, Search, ShoppingBag, Sun, UserRound } from 'lucide-react';
 import { Wordmark } from '../brand/Mark';
 import { useTelegramBackButton } from './PrimaryAction';
 import { useConfig } from '../../hooks/queries';
@@ -12,6 +12,7 @@ import { cartCount, useCart } from '../../store/cart';
 import { useCampaignBanner } from '../checkout/Offers';
 import { useCustomer } from '../../store/auth';
 import { useTheme } from '../../store/theme';
+import { useWishlist } from '../../store/wishlist';
 import { Avatar } from './Avatar';
 
 function LangToggle() {
@@ -68,6 +69,32 @@ function BagLink({ className }: { className?: string }) {
   );
 }
 
+/** ♡ Saved — always one tap away (filled heart + count once something is saved). */
+function SavedLink() {
+  const count = useWishlist((s) => s.ids.length);
+  const { t } = useT();
+  return (
+    <NavLink
+      to="/saved"
+      className={({ isActive }) => cn('relative grid size-10 place-items-center rounded-full hover:bg-wool-2', isActive && 'text-camel')}
+      aria-label={t('saved.title') + (count ? ` (${count})` : '')}
+    >
+      <Heart className={cn('size-[1.3rem]', count > 0 && 'fill-camel text-camel')} strokeWidth={1.6} />
+      {count > 0 && (
+        <motion.span
+          key={count}
+          initial={{ scale: 1.7 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+          className="absolute right-0.5 top-0.5 grid min-w-[1.1rem] place-items-center rounded-full bg-chalk px-1 font-mono text-[0.6rem] font-medium leading-[1.1rem] text-ink"
+        >
+          {count}
+        </motion.span>
+      )}
+    </NavLink>
+  );
+}
+
 function Header() {
   const { t } = useT();
   const desktopLink = ({ isActive }: { isActive: boolean }) =>
@@ -96,6 +123,7 @@ function Header() {
           <Link to="/search" className="grid size-10 place-items-center rounded-full hover:bg-wool-2" aria-label="Search">
             <Search className="size-[1.3rem]" strokeWidth={1.6} />
           </Link>
+          <SavedLink />
           <BagLink className="hidden md:grid" />
           <ThemeToggle className="hidden md:grid" />
           <LangToggle />

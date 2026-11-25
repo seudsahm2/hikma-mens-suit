@@ -44,7 +44,10 @@ function useSelection(product?: P) {
   const matches = (v: P['variants'][number], s: string | null, c: string | null) =>
     (sizes.length ? v.size === s : true) && (colors.length ? v.color === c : true);
 
-  const variant = product?.variants.find((v) => matches(v, size, color));
+  // Prefer an in-stock match: the button must agree with the size picker (which shows a size as
+  // available when any matching variant has stock) — never "Notify me" on an available size.
+  const candidates = product?.variants.filter((v) => matches(v, size, color)) ?? [];
+  const variant = candidates.find((v) => v.available > 0) ?? candidates[0];
   const isSizeAvailable = (s: string) => Boolean(product?.variants.some((v) => matches(v, s, color) && v.available > 0));
   const isColorAvailable = (c: string) => Boolean(product?.variants.some((v) => v.color === c && v.available > 0));
 

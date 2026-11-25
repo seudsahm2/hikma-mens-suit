@@ -11,10 +11,14 @@ import { adminApi, Card, PaymentBadge, StatusBadge, statusLabel } from '../ui';
 import { DriverCard } from './Drivers';
 import { ConfirmDelivered } from './ConfirmDelivered';
 
+/**
+ * One step at a time (same rule as the server and the Telegram cards). "On the way" isn't here for
+ * delivery orders — it happens through the Delivery card (driver accepts → Handed over).
+ */
 const NEXT: Record<OrderStatus, OrderStatus[]> = {
-  PENDING: ['CONFIRMED', 'PACKING'],
-  CONFIRMED: ['PACKING', 'OUT_FOR_DELIVERY'],
-  PACKING: ['OUT_FOR_DELIVERY'],
+  PENDING: ['CONFIRMED'],
+  CONFIRMED: ['PACKING'],
+  PACKING: [],
   OUT_FOR_DELIVERY: ['DELIVERED'],
   DELIVERED: [],
   PICKED_UP: [],
@@ -70,7 +74,7 @@ export default function OrderDetail() {
 
   const open = order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && order.status !== 'PICKED_UP';
   const pickup = order.delivery.optionId === 'pickup';
-  const next = pickup ? (open ? (['CONFIRMED', 'PACKING', 'PICKED_UP'] as OrderStatus[]).filter((s) => s !== order.status) : []) : NEXT[order.status];
+  const next: OrderStatus[] = pickup && order.status === 'PACKING' ? ['PICKED_UP'] : NEXT[order.status];
   const canReviewPayment = open && order.paymentStatus !== 'PAID';
   const address = [order.delivery.city, order.delivery.area, order.delivery.landmark].filter(Boolean).join(', ');
   const phoneIntl = order.customerPhone.replace(/^0/, '+251');

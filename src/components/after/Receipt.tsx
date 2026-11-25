@@ -26,6 +26,7 @@ const MUTED = '#6E6A62';
 const RULE = '#D9D3C7';
 const CAMEL = '#9A6A36';
 const OK = '#2E7A48';
+const VOID = '#B3261E';
 
 const etb = (n: number) => `${n.toLocaleString('en-US')} ETB`;
 
@@ -251,14 +252,16 @@ export async function drawReceipt(order: Order, store: StoreSettings | undefined
   // Stamp
   y += 110;
   const paid = order.paymentStatus === 'PAID';
+  // Cancelled beats everything: the stamp must never say "checking payment" on a cancelled order
+  const ink = order.status === 'CANCELLED' ? VOID : paid ? OK : CAMEL;
   const stamp = L.status.toUpperCase();
   g.save();
   g.translate(W / 2, y);
   g.rotate((-6 * Math.PI) / 180);
   g.font = '700 40px "IBM Plex Mono", monospace';
   const sw = g.measureText(stamp).width + 80;
-  g.strokeStyle = paid ? OK : CAMEL;
-  g.fillStyle = paid ? OK : CAMEL;
+  g.strokeStyle = ink;
+  g.fillStyle = ink;
   g.lineWidth = 5;
   roundRect(g, -sw / 2, -46, sw, 92, 18);
   g.stroke();
@@ -294,7 +297,12 @@ export function ReceiptButton({ order, store, className }: { order: Order; store
         paid: t('order.paid'),
         balance: t('order.balance'),
         payment: t('order.payment'),
-        status: order.paymentStatus === 'PAID' ? `✓ ${t('pay.PAID')}` : t(`pay.${order.paymentStatus}`),
+        status:
+          order.status === 'CANCELLED'
+            ? `✕ ${t('status.CANCELLED')}`
+            : order.paymentStatus === 'PAID'
+              ? `✓ ${t('pay.PAID')}`
+              : t(`pay.${order.paymentStatus}`),
         thanks: t('rc.thanks'),
       });
       setBlob(b);

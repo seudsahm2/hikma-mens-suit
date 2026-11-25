@@ -286,9 +286,12 @@ export function OrderPage() {
         )}
       </section>
 
-      <div className="mt-8 flex justify-center">
-        <ReceiptButton order={order} store={config?.store} />
-      </div>
+      {/* A cancelled order with nothing paid has nothing to prove — no receipt */}
+      {(order.status !== 'CANCELLED' || order.amountPaid > 0) && (
+        <div className="mt-8 flex justify-center">
+          <ReceiptButton order={order} store={config?.store} />
+        </div>
+      )}
 
       <Link to="/shop" className={buttonClass('outline', 'md', 'mt-6 w-full')}>
         {t('order.continueShopping')}

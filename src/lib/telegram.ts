@@ -182,13 +182,42 @@ function freshGps(): Promise<LocationResult> {
   });
 }
 
+/**
+ * Second try from the same (already allowed) browser location: network / Wi-Fi position, may reuse a
+ * reading up to 2 minutes old. Used when the GPS couldn't get a satellite fix in time (indoors).
+ * No new permission prompt — the browser permission is the same one.
+ */
+function quickGps(): Promise<LocationResult> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve({ ok: false, reason: 'unavailable' });
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            ok: true,
+            lat: +pos.coords.latitude.toFixed(6),
+            lng: +pos.coords.longitude.toFixed(6),
+            accuracy: Math.round(pos.coords.accuracy),
+            source: 'gps',
+          }),
+        (err) => resolve({ ok: false, reason: err.code === err.PERMISSION_DENIED ? 'denied' : 'unavailable' }),
+        { enableHighAccuracy: false, maximumAge: 120_000, timeout: 10_000 },
+      );
+    } catch {
+      resolve({ ok: false, reason: 'unavailable' });
+    }
+  });
+}
+
 /** Backup inside Telegram: Telegram's LocationManager (often returns the phone's last stored location). */
-function telegramLocation(): Promise<LocationResult> {
+function telegramLocation(mayAsk: boolean): Promise<LocationResult> {
   const lm = tg && tg.isVersionAtLeast('8.0') ? tg.LocationManager : undefined;
   if (!lm) return Promise.resolve({ ok: false, reason: 'unavailable' });
   return new Promise((resolve) => {
     const read = () => {
       if (!lm.isLocationAvailable) return resolve({ ok: false, reason: 'unavailable' });
+      // Don't show Telegram's own permission prompt unless the browser location can't be used at all
+      if (!mayAsk && !lm.isAccessGranted) return resolve({ ok: false, reason: 'unavailable' });
       lm.getLocation((data) => {
         if (data) resolve({ ok: true, lat: +data.latitude.toFixed(6), lng: +data.longitude.toFixed(6), accuracy: null, source: 'telegram' });
         else resolve({ ok: false, reason: lm.isAccessRequested && !lm.isAccessGranted ? 'denied' : 'unavailable' });
@@ -200,15 +229,22 @@ function telegramLocation(): Promise<LocationResult> {
 }
 
 /**
- * The customer's current location: fresh GPS first (works in browsers and inside Telegram's web view,
- * one permission prompt, no settings to change). Only if that's blocked or fails, Telegram's own
- * location is used as a backup.
+ * The customer's current location, best first:
+ *  1. fresh, high-accuracy GPS (one browser permission prompt, then never again);
+ *  2. if no satellite fix in time: the same browser location at normal accuracy (no new prompt);
+ *  3. Telegram's location — silently if already allowed; it only asks for Telegram permission
+ *     when the browser location is missing or was refused (so no second prompt after allowing).
  */
 export async function getLocation(): Promise<LocationResult> {
-  const gps = await freshGps();
+  const supported = typeof navigator !== 'undefined' && Boolean(navigator.geolocation);
+  let gps = await freshGps();
   if (gps.ok) return gps;
+  if (supported && gps.reason !== 'denied') {
+    gps = await quickGps();
+    if (gps.ok) return gps;
+  }
   if (tg) {
-    const backup = await telegramLocation();
+    const backup = await telegramLocation(!supported || gps.reason === 'denied');
     if (backup.ok) return backup;
   }
   return gps;

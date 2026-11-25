@@ -204,7 +204,7 @@ function nextStep(o: Order): { label: string; run: () => Promise<unknown> } | nu
   if (o.status === 'PACKING')
     return pickup
       ? { label: 'Picked up', run: () => (window.confirm(`Has the customer picked up ${o.orderNumber}?`) ? status('PICKED_UP')() : Promise.reject(new Error('cancelled'))) }
-      : { label: 'On the way', run: status('OUT_FOR_DELIVERY') };
+      : null; // delivery: the order page's Delivery card (Find nearest driver → Handed over)
   // Delivered is never a one-click action: it's confirmed with the customer's code (driver or order page)
   return null;
 }
