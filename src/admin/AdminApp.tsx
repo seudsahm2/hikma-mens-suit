@@ -2,7 +2,7 @@ import { Suspense, useState } from 'react';
 import { lazyRetry } from '../lib/lazy';
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, ExternalLink, History, LifeBuoy, LineChart, LogOut, ReceiptText, Settings, Shirt, Star, Store, Tag, Users, UserCog } from 'lucide-react';
+import { BarChart3, ExternalLink, History, LifeBuoy, LineChart, LogOut, Send, ReceiptText, Settings, Shirt, Star, Store, Tag, Users, UserCog } from 'lucide-react';
 import { Wordmark } from '../components/brand/Mark';
 import { Button, Input, PageLoader } from '../components/ui';
 import { api, ApiError } from '../lib/api';
@@ -150,6 +150,24 @@ function Shell() {
             <p className="truncate text-sm">{user?.fullName}</p>
             <p className="label !text-[0.58rem]">{user?.role === 'OWNER' ? 'Owner' : 'Admin'}</p>
           </div>
+          <button
+            onClick={async () => {
+              // Connect this staff account to the owner's own Telegram (order-card actions become theirs)
+              const tab = window.open('', '_blank');
+              try {
+                const r = await api<{ url: string }>('/auth/staff-telegram', { method: 'POST' });
+                if (tab) tab.location.href = r.url;
+                else window.location.href = r.url;
+              } catch {
+                tab?.close();
+              }
+            }}
+            className="rounded-full p-2 text-steel hover:text-chalk"
+            aria-label="Connect Telegram"
+            title="Connect Telegram — tap Start in the bot"
+          >
+            <Send className="size-4" />
+          </button>
           <button
             onClick={() => {
               signOut();
