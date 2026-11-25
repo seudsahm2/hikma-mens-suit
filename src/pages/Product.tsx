@@ -12,7 +12,7 @@ import { toast } from '../components/ui/toast';
 import { useConfig, useProduct, useProducts } from '../hooks/queries';
 import { useT } from '../lib/i18n';
 import { birr, cn, sortSizes } from '../lib/format';
-import { haptic, openExternal, usesNativeButton } from '../lib/telegram';
+import { haptic, openExternal } from '../lib/telegram';
 import type { Product as P } from '../lib/types';
 import { useCart } from '../store/cart';
 import { useCustomer } from '../store/auth';
@@ -415,7 +415,7 @@ export default function ProductPage() {
       )}
 
       <div className="md:hidden">
-        <PrimaryAction label={mainLabel} onClick={mainAction} disabled={mainDisabled} />
+        <PrimaryAction web label={mainLabel} onClick={mainAction} disabled={mainDisabled} />
       </div>
 
       {/* "Added to your bag" card: confirms the add and offers the next step */}
@@ -430,7 +430,7 @@ export default function ProductPage() {
             className={cn(
               'fixed inset-x-3 z-40 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-seam bg-wool-2/95 p-3 shadow-2xl shadow-black/50 backdrop-blur md:inset-x-auto md:right-6 md:top-20 md:mx-0 md:w-96',
               // Always above the tab bar (64px) — and above the sticky Add-to-bag bar (~81px) when it's shown
-              usesNativeButton ? 'bottom-[calc(76px+env(safe-area-inset-bottom))] md:bottom-auto' : 'bottom-[calc(158px+env(safe-area-inset-bottom))] md:bottom-auto',
+              'bottom-[calc(158px+env(safe-area-inset-bottom))] md:bottom-auto', // above our own Add-to-bag bar (also inside Telegram)
             )}
           >
             {added.image ? <img src={added.image} alt="" className="aspect-[4/5] w-12 rounded-md object-cover" /> : null}

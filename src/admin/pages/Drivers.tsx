@@ -5,7 +5,7 @@ import { Bike, Check, Copy, MapPin, Package, Phone, Plus, Zap } from 'lucide-rea
 import { Button, Input } from '../../components/ui';
 import { toast } from '../../components/ui/toast';
 import { ApiError } from '../../lib/api';
-import { cn } from '../../lib/format';
+import { birr, cn } from '../../lib/format';
 import type { Order } from '../../lib/types';
 import { adminApi, Card } from '../ui';
 
@@ -23,6 +23,8 @@ export interface DriverRow {
   distanceKm: number | null;
   locationAt: string | null;
   mapUrl: string | null;
+  /** cash collected on deliveries, not yet handed to the shop */
+  cash?: { amount: number; orders: { orderNumber: string; amount: number; at: string }[] };
 }
 
 /** "Online · 1.2 km from the shop" */
@@ -55,6 +57,14 @@ export function DriversSection({ botUsername }: { botUsername: string }) {
     },
     onError: (e) => toast.error(errMsg(e)),
   });
+  const received = useMutation({
+    mutationFn: (id: string) => adminApi<{ amount: number }>(`/drivers/${id}/cash/received`, { body: {} }),
+    onSuccess: (r) => {
+      toast.ok(r.amount ? `Received ${birr(r.amount)}` : 'Nothing to receive');
+      refresh();
+    },
+    onError: (e) => toast.error(errMsg(e)),
+  });
   const patch = useMutation({
     mutationFn: ({ id, body }: { id: string; body: { isActive?: boolean; newCode?: boolean } }) => adminApi(`/drivers/${id}`, { method: 'PATCH', body }),
     onSuccess: refresh,
@@ -83,6 +93,27 @@ export function DriversSection({ botUsername }: { botUsername: string }) {
                 )}
               </span>
             </div>
+            {(d.cash?.amount ?? 0) > 0 && (
+              <div className="mt-3 flex items-center gap-3 rounded-xl border border-camel/30 bg-camel/[0.06] p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm">
+                    💵 Holding <b className="font-mono">{birr(d.cash!.amount)}</b>
+                  </p>
+                  <p className="truncate text-xs text-steel">
+                    {d.cash!.orders.map((o) => `${o.orderNumber} · ${birr(o.amount)}`).join('  ·  ')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Did ${d.name} hand over ${birr(d.cash!.amount)}?`)) received.mutate(d.id);
+                  }}
+                  disabled={received.isPending}
+                  className="shrink-0 rounded-full bg-camel px-4 py-2 text-sm font-semibold text-ink disabled:opacity-50"
+                >
+                  Received
+                </button>
+              </div>
+            )}
             {!d.linked && d.linkCode && d.isActive && (
               <div className="mt-3 rounded-xl bg-ink/50 p-3 text-xs text-steel">
                 Not connected yet — send {d.name.split(' ')[0]} this invite. They tap it, press <b className="text-chalk">Start</b>, and their own Telegram is linked.

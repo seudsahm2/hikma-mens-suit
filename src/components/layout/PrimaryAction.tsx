@@ -10,18 +10,25 @@ interface Props {
   loading?: boolean;
   /** Extra content shown left of the button on the web (e.g. total). */
   aside?: ReactNode;
+  /**
+   * Always use our own button, never Telegram's native one. For labels that change on every tap
+   * (product page: size → "Add to bag" / "Notify me"): Telegram Android shows the native button's
+   * text one update late, so the label lagged one tap behind the chosen size.
+   */
+  web?: boolean;
 }
 
 /**
  * The page's single main action.
  * Inside Telegram it drives the native MainButton; on the web it's a sticky bar.
  */
-export function PrimaryAction({ label, onClick, disabled, loading, aside }: Props) {
+export function PrimaryAction({ label, onClick, disabled, loading, aside, web = false }: Props) {
+  const native = usesNativeButton && !web;
   const handler = useRef(onClick);
   handler.current = onClick;
 
   useEffect(() => {
-    if (!tg || !usesNativeButton) return;
+    if (!tg || !native) return;
     const mb = tg.MainButton;
     const cb = () => handler.current();
     mb.onClick(cb);
@@ -30,10 +37,10 @@ export function PrimaryAction({ label, onClick, disabled, loading, aside }: Prop
       mb.hideProgress();
       mb.hide();
     };
-  }, []);
+  }, [native]);
 
   useEffect(() => {
-    if (!tg || !usesNativeButton) return;
+    if (!tg || !native) return;
     const mb = tg.MainButton;
     // Text is set on its own (Telegram Android can show the previous text when it's bundled into setParams)
     mb.setParams({ color: '#B98B57', text_color: '#0D1015' });
@@ -43,9 +50,9 @@ export function PrimaryAction({ label, onClick, disabled, loading, aside }: Prop
     mb.show();
     if (loading) mb.showProgress(false);
     else mb.hideProgress();
-  }, [label, disabled, loading]);
+  }, [label, disabled, loading, native]);
 
-  if (usesNativeButton) return null;
+  if (native) return null;
 
   return (
     <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 border-t border-seam bg-ink/90 px-4 py-3 backdrop-blur-md md:bottom-0">
