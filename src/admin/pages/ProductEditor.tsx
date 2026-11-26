@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Bell, Camera, Check, ChevronDown, ExternalLink, Megaphone, Minus, Plus, Send, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Bell, Camera, Check, ChevronDown, ExternalLink, Megaphone, Minus, Plus, Send, Sparkles, Trash2, X } from 'lucide-react';
 import { Button, ErrorState, Input, PageLoader, Textarea } from '../../components/ui';
 import { toast } from '../../components/ui/toast';
 import { ApiError } from '../../lib/api';
@@ -11,6 +11,7 @@ import type { AdminProduct } from '../types';
 import { suggestAmharicDescription, suggestAmharicName } from '../../lib/amharic';
 import { adminApi, Card, Toggle } from '../ui';
 import { Dropdown } from '../../components/ui/Dropdown';
+import { AnnounceSheet } from './AnnounceSheet';
 
 const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
 const int = (s: string) => (s.trim() === '' ? null : Number(s.replace(/\D/g, '')));
@@ -679,6 +680,7 @@ function Announce({ product }: { product: AdminProduct }) {
   });
   const d = info.data;
   const last = d?.last;
+  const [pickOpen, setPickOpen] = useState(false);
   return (
     <Card title="Tell customers">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -686,10 +688,17 @@ function Announce({ product }: { product: AdminProduct }) {
           <Bell className="mr-1.5 inline size-4 text-camel" />
           {d ? `${d.subscribers} subscriber${d.subscribers === 1 ? '' : 's'} on Telegram` : '…'}
         </p>
-        <Button variant="primary" loading={send.isPending} disabled={!d?.subscribers || last?.status === 'sending'} onClick={() => send.mutate(false)}>
-          <Megaphone className="size-4" /> Announce
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setPickOpen(true)} disabled={product.status !== 'ACTIVE'}>
+            <Sparkles className="size-4" /> Top customers
+          </Button>
+          <Button variant="primary" loading={send.isPending} disabled={!d?.subscribers || last?.status === 'sending'} onClick={() => send.mutate(false)}>
+            <Megaphone className="size-4" /> Announce
+          </Button>
+        </div>
       </div>
+      {/* Hand-picked: only the customers you tick (top customers by default) */}
+      <AnnounceSheet open={pickOpen} onClose={() => setPickOpen(false)} productId={product.id} />
       {last && (
         <p className="mt-3 text-xs text-steel">
           {last.status === 'sending'
