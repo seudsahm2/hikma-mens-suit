@@ -1132,7 +1132,7 @@ export default function ProductEditor() {
       )}
 
       {/* Sticky actions */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-seam bg-ink/90 px-4 py-3 backdrop-blur md:left-[240px]">
+      <div onMouseDown={(e) => e.preventDefault()} /* keep the field focused: the keyboard stays, the bar doesn't jump under the finger */ className="fixed inset-x-0 bottom-0 z-30 border-t border-seam bg-ink/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:left-[240px]">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <div className="hidden min-w-0 flex-1 flex-wrap gap-x-3 gap-y-1 text-xs sm:flex">
             {!live &&

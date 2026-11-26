@@ -60,17 +60,25 @@ function PickSize({ product, inTicket, onPick, onClose }: { product: AdminProduc
             {color && <p className="label mb-2">{color}</p>}
             <div className="grid grid-cols-4 gap-2">
               {sorted.map((v) => {
-                const left = v.stock - inTicket(v.id);
+                const taken = inTicket(v.id);
+                const left = v.stock - taken;
                 return (
                   <button
                     key={v.id}
                     type="button"
                     disabled={left <= 0}
                     onClick={() => onPick(v)}
-                    className="flex h-16 flex-col items-center justify-center rounded-xl border border-seam bg-ink/40 transition-colors hover:border-camel disabled:opacity-30"
+                    className={cn(
+                      'relative flex h-16 flex-col items-center justify-center rounded-xl border bg-ink/40 transition-colors',
+                      taken > 0 ? 'border-camel' : 'border-seam hover:border-camel',
+                      v.stock <= 0 && 'opacity-30',
+                    )}
                   >
+                    {taken > 0 && (
+                      <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-camel font-mono text-[0.65rem] font-bold text-ink">{taken}</span>
+                    )}
                     <span className="font-mono text-base">{v.size || 'Add'}</span>
-                    <span className={cn('text-[0.7rem]', left <= 1 ? 'text-camel' : 'text-steel')}>{left > 0 ? `${left} left` : 'none'}</span>
+                    <span className={cn('text-[0.7rem]', left <= 1 ? 'text-camel' : 'text-steel')}>{v.stock <= 0 ? 'none' : left > 0 ? `${left} left` : 'all in sale'}</span>
                   </button>
                 );
               })}
@@ -349,25 +357,39 @@ export default function Counter() {
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
             {(products.data ?? []).map((p) => {
-              const stock = p.variants.filter((v) => v.isActive).reduce((n, v) => n + v.stock - inTicket(v.id), 0);
+              const active = p.variants.filter((v) => v.isActive);
+              const onShelf = active.reduce((n, v) => n + v.stock, 0);
+              const picked = active.reduce((n, v) => n + inTicket(v.id), 0);
+              const left = onShelf - picked;
+              // Selected = camel frame + "in this sale" badge (never dimmed). Only truly sold-out items fade.
               return (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => tapProduct(p)}
-                  disabled={stock <= 0}
-                  className="group overflow-hidden rounded-2xl border border-seam/80 bg-wool text-left transition-colors hover:border-camel disabled:opacity-40"
+                  disabled={left <= 0}
+                  className={cn(
+                    'group relative overflow-hidden rounded-2xl border bg-wool text-left transition-[border-color,box-shadow]',
+                    picked > 0 ? 'border-camel shadow-[0_0_0_1px_var(--color-camel)]' : 'border-seam/80 hover:border-camel',
+                    onShelf <= 0 && 'opacity-40',
+                    left <= 0 && 'cursor-default',
+                  )}
                 >
                   {p.images[0] ? (
                     <img src={p.images[0].urls.sm} alt="" className="aspect-[4/5] w-full object-cover" loading="lazy" />
                   ) : (
                     <div className="aspect-[4/5] w-full bg-wool-2" />
                   )}
+                  {picked > 0 && (
+                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-camel px-2.5 py-1 text-[0.7rem] font-semibold text-ink shadow">
+                      <Check className="size-3.5" strokeWidth={3} /> {picked} in this sale
+                    </span>
+                  )}
                   <div className="p-3">
                     <p className="line-clamp-1 text-sm">{p.nameEn}</p>
                     <p className="mt-0.5 flex justify-between font-mono text-xs">
                       <span>{num(p.basePrice)}</span>
-                      <span className={stock <= 1 ? 'text-camel' : 'text-steel'}>{stock > 0 ? `${stock} left` : 'sold out'}</span>
+                      <span className={left <= 1 ? 'text-camel' : 'text-steel'}>{onShelf <= 0 ? 'sold out' : left > 0 ? `${left} left` : 'all in this sale'}</span>
                     </p>
                   </div>
                 </button>
@@ -414,7 +436,7 @@ export default function Counter() {
       </div>
 
       {count > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-seam bg-ink/95 px-4 py-3 backdrop-blur lg:hidden">
+        <div onMouseDown={(e) => e.preventDefault()} /* keep the field focused: the keyboard stays, the bar doesn't jump under the finger */ className="fixed inset-x-0 bottom-0 z-30 border-t border-seam bg-ink/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
           <button onClick={() => setTicketOpen(true)} className="flex h-14 w-full items-center justify-between rounded-full bg-camel px-6 text-ink">
             <span className="font-semibold">
               {count} item{count === 1 ? '' : 's'}

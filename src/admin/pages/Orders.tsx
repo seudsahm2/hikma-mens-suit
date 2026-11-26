@@ -10,13 +10,14 @@ import type { Order, OrderStatus } from '../../lib/types';
 import { adminApi, PageHeader, PaymentBadge, StatusBadge, Tabs } from '../ui';
 import { CancelCountdown } from './CancelCountdown';
 
-type Tab = 'open' | 'review' | 'all' | 'done' | 'cancelled';
+type Tab = 'open' | 'review' | 'all' | 'done' | 'pickedup' | 'cancelled';
 
 const TAB_QUERY: Record<Tab, Record<string, string>> = {
   open: { status: 'OPEN' },
   review: { payment: 'SUBMITTED' },
   all: {},
   done: { status: 'DELIVERED' },
+  pickedup: { status: 'PICKED_UP' },
   cancelled: { status: 'CANCELLED' },
 };
 
@@ -52,6 +53,7 @@ export default function Orders() {
             { value: 'open', label: 'Open' },
             { value: 'review', label: 'Check payment', count: data?.needsReview },
             { value: 'done', label: 'Delivered' },
+            { value: 'pickedup', label: 'Picked up' },
             { value: 'cancelled', label: 'Cancelled' },
             { value: 'all', label: 'All' },
           ]}

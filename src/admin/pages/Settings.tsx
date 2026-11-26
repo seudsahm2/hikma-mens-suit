@@ -733,7 +733,7 @@ function ShopTab({ data }: { data: SettingsResponse }) {
       </Fieldset>
 
       {dirty && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-seam bg-ink/90 px-4 py-3 backdrop-blur md:left-[248px]">
+        <div onMouseDown={(e) => e.preventDefault()} /* keep the field focused: the keyboard stays, the bar doesn't jump under the finger */ className="fixed inset-x-0 bottom-0 z-30 border-t border-seam bg-ink/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:left-[248px]">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
             <span className="text-sm text-steel">Unsaved changes</span>
             <div className="flex gap-2">

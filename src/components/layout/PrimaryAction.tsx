@@ -55,7 +55,7 @@ export function PrimaryAction({ label, onClick, disabled, loading, aside, web = 
   if (native) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 border-t border-seam bg-ink/90 px-4 py-3 backdrop-blur-md md:bottom-0">
+    <div onMouseDown={(e) => e.preventDefault()} /* keep the field focused: the keyboard stays, the bar doesn't jump under the finger */ className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 border-t border-seam bg-ink/95 px-4 py-3 md:bottom-0">
       <div className="mx-auto flex max-w-3xl items-center gap-4">
         {aside && <div className="min-w-0 flex-1">{aside}</div>}
         <Button variant="accent" size="lg" onClick={onClick} disabled={disabled} loading={loading} className={aside ? 'flex-1' : 'w-full'}>

@@ -50,7 +50,7 @@ export default function Products() {
           tabs={[
             { value: 'active', label: 'On sale' },
             { value: 'draft', label: 'Drafts' },
-            { value: 'low', label: 'Low stock' },
+            { value: 'low', label: 'Low stock sizes' },
             { value: 'archived', label: 'Archived' },
           ]}
         />
@@ -64,6 +64,12 @@ export default function Products() {
           />
         </label>
       </div>
+      {tab === 'low' && <p className="-mt-2 mb-4 text-sm text-steel">Products with at least one size at 2 or fewer — the sizes are named on each card.</p>}
+      {tab === 'archived' && (
+        <p className="-mt-2 mb-4 text-sm text-steel">
+          Hidden from the shop for good, but kept because they appear in past orders (deleting a product with orders archives it). Open one and put it on sale again to bring it back.
+        </p>
+      )}
 
       {isLoading ? (
         <PageLoader />
@@ -103,6 +109,23 @@ export default function Products() {
                         <span className="font-mono">{birr(p.basePrice)}</span>
                         <span className={cn('font-mono', p.totalStock === 0 ? 'text-danger' : low ? 'text-camel' : 'text-steel')}>{p.totalStock} pcs</span>
                       </div>
+                      {/* "Low stock" is per size (≤ 2 left): name the sizes, so a product with plenty in total isn't confusing */}
+                      {low > 0 && p.totalStock > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {p.variants
+                            .filter((v) => v.isActive && v.stock <= 2)
+                            .slice(0, 4)
+                            .map((v) => (
+                              <span
+                                key={v.id}
+                                className={cn('rounded px-1.5 py-0.5 font-mono text-[0.62rem]', v.stock === 0 ? 'bg-danger/15 text-danger' : 'bg-camel/15 text-camel')}
+                              >
+                                {[v.size, v.color].filter(Boolean).join(' ') || 'One size'} · {v.stock === 0 ? 'out' : `${v.stock} left`}
+                              </span>
+                            ))}
+                          {low > 4 && <span className="px-1 font-mono text-[0.62rem] text-steel">+{low - 4}</span>}
+                        </div>
+                      )}
                     </div>
                   </Link>
                 </li>
