@@ -2,13 +2,14 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { Bike, Check, Copy, MapPin, Package, Phone, Plus, Zap } from 'lucide-react';
+import { Banknote, Bike, Check, ChevronRight, Copy, MapPin, Package, Phone, Plus, Send, ShieldCheck, Star, Zap } from 'lucide-react';
 import { Button, Input } from '../../components/ui';
 import { toast } from '../../components/ui/toast';
 import { ApiError } from '../../lib/api';
 import { birr, cn } from '../../lib/format';
 import type { Order } from '../../lib/types';
 import { adminApi, Card } from '../ui';
+import { useStaff } from '../../store/auth';
 
 export interface DriverRow {
   id: string;
@@ -44,10 +45,48 @@ export function driverStatus(d: DriverRow) {
 const errMsg = (err: unknown) => (err instanceof ApiError ? err.message : 'Failed');
 export const useDrivers = () => useQuery({ queryKey: ['admin', 'drivers'], queryFn: () => adminApi<{ drivers: DriverRow[] }>('/drivers').then((r) => r.drivers) });
 
+/** Owner: which delivery people / admins have a verified Fayda ID (for the ✓ badges). */
+export const useIdentitySummary = (enabled: boolean) =>
+  useQuery({ queryKey: ['admin', 'identity-summary'], queryFn: () => adminApi<{ driver: string[]; staff: string[] }>('/identity-summary'), enabled, staleTime: 60_000 });
+
+const STATUS_STYLE = {
+  ok: { dot: 'bg-ok', ring: 'ring-ok/70', text: 'text-ok' },
+  busy: { dot: 'bg-camel', ring: 'ring-camel/80', text: 'text-camel' },
+  off: { dot: 'bg-steel/60', ring: 'ring-seam', text: 'text-steel' },
+  new: { dot: 'bg-camel/60', ring: 'ring-camel/40', text: 'text-camel' },
+} as const;
+
+function statusKind(d: DriverRow): keyof typeof STATUS_STYLE {
+  if (!d.linked) return 'new';
+  if (d.busy) return 'busy';
+  return d.isOnline ? 'ok' : 'off';
+}
+
+/** Avatar with a status ring (green = free, camel = busy, grey = offline). */
+export function DriverAvatar({ name, kind, size = 'md' }: { name: string; kind: keyof typeof STATUS_STYLE; size?: 'md' | 'lg' }) {
+  const s = STATUS_STYLE[kind];
+  return (
+    <span className="relative shrink-0">
+      <span
+        className={cn(
+          'grid place-items-center rounded-full bg-gradient-to-br from-wool-2 to-ink font-display font-bold text-chalk ring-2 ring-offset-2 ring-offset-wool',
+          s.ring,
+          size === 'lg' ? 'size-20 text-3xl' : 'size-12 text-lg',
+        )}
+      >
+        {name.slice(0, 1).toUpperCase()}
+      </span>
+      <span className={cn('absolute bottom-0 right-0 rounded-full ring-2 ring-wool', s.dot, size === 'lg' ? 'size-5' : 'size-3.5', kind === 'ok' && 'animate-pulse')} />
+    </span>
+  );
+}
+
 /** Settings → Delivery: the people who deliver. */
 export function DriversSection({ botUsername }: { botUsername: string }) {
   const qc = useQueryClient();
   const q = useDrivers();
+  const isOwner = useStaff((s) => s.user?.role === 'OWNER');
+  const ids = useIdentitySummary(isOwner);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [adding, setAdding] = useState(false);
@@ -75,123 +114,150 @@ export function DriversSection({ botUsername }: { botUsername: string }) {
     onSuccess: refresh,
   });
 
+  const list = q.data ?? [];
+  const online = list.filter((d) => d.isActive && statusKind(d) === 'ok').length;
+  const busy = list.filter((d) => d.isActive && statusKind(d) === 'busy').length;
+
   return (
     <section>
-      <h2 className="label mb-2.5 px-1">Delivery people</h2>
-      <div className="divide-y divide-seam/60 overflow-hidden rounded-2xl border border-seam/80 bg-gradient-to-b from-wool-2/60 to-wool">
-        {(q.data ?? []).map((d) => (
-          <div key={d.id} className={cn('px-4 py-3.5', !d.isActive && 'opacity-50')}>
-            <div className="flex items-center gap-4">
-              <span className="grid size-10 place-items-center rounded-xl bg-camel/15 text-camel">
-                <Bike className="size-4" />
-              </span>
-              {/* Tap → full profile: current job, stats, ratings, history */}
-              <Link to={`/admin/drivers/${d.id}`} className="group min-w-0 flex-1">
-                <span className="flex items-center gap-2">
-                  <span className="group-hover:text-camel">{d.name}</span>
-                  {d.rating && (
-                    <span className="inline-flex items-center gap-0.5 font-mono text-xs text-camel">
-                      ★ {d.rating.avg}
-                      <span className="text-steel">({d.rating.count})</span>
-                    </span>
-                  )}
-                  {d.rating && d.rating.avg >= 4.5 && d.rating.count >= 3 && <span className="rounded-full bg-camel px-1.5 py-px text-[0.6rem] font-semibold text-ink">TOP</span>}
-                </span>
-                <span className="block font-mono text-xs text-steel">{d.phone} · profile ›</span>
-              </Link>
-              <span className={cn('text-right text-xs', driverStatus(d).tone)}>
-                {d.busy && d.busyWith ? (
-                  // Tap through to the order keeping them busy (e.g. one left "On the way")
-                  <Link to={`/admin/orders/${d.busyWith.id}`} className="underline underline-offset-2">
-                    ● {driverStatus(d).text}
-                  </Link>
-                ) : (
-                  <>● {driverStatus(d).text}</>
-                )}
-                {d.mapUrl && (
-                  <a href={d.mapUrl} target="_blank" rel="noreferrer" className="ml-2 text-steel underline underline-offset-2 hover:text-chalk">
-                    map
-                  </a>
-                )}
-              </span>
-            </div>
-            {(d.cash?.amount ?? 0) > 0 && (
-              <div className="mt-3 flex items-center gap-3 rounded-xl border border-camel/30 bg-camel/[0.06] p-3">
+      <div className="mb-3 flex items-end justify-between gap-3 px-1">
+        <h2 className="label">Delivery people</h2>
+        {list.length > 0 && (
+          <div className="flex gap-2 text-[0.7rem]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-ok/10 px-2.5 py-1 text-ok">
+              <span className="size-1.5 rounded-full bg-ok" /> {online} free
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-camel/10 px-2.5 py-1 text-camel">
+              <span className="size-1.5 rounded-full bg-camel" /> {busy} busy
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        {list.map((d) => {
+          const kind = statusKind(d);
+          const st = driverStatus(d);
+          const verified = ids.data?.driver.includes(d.id);
+          return (
+            <article key={d.id} className={cn('overflow-hidden rounded-3xl border border-seam/80 bg-gradient-to-br from-wool-2/70 via-wool to-wool', !d.isActive && 'opacity-50')}>
+              {/* Whole top row → profile */}
+              <Link to={`/admin/drivers/${d.id}`} className="group flex items-center gap-4 p-4">
+                <DriverAvatar name={d.name} kind={kind} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm">
-                    💵 Holding <b className="font-mono">{birr(d.cash!.amount)}</b>
-                  </p>
-                  <p className="truncate text-xs text-steel">
-                    {d.cash!.orders.map((o) => `${o.orderNumber} · ${birr(o.amount)}`).join('  ·  ')}
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate font-medium group-hover:text-camel">{d.name}</p>
+                    {verified && <ShieldCheck className="size-4 shrink-0 text-ok" aria-label="Fayda ID verified" />}
+                    {d.rating && d.rating.avg >= 4.5 && d.rating.count >= 3 && <span className="shrink-0 rounded-full bg-camel px-1.5 py-px text-[0.58rem] font-bold tracking-wide text-ink">TOP</span>}
+                  </div>
+                  <p className={cn('mt-0.5 truncate text-xs', STATUS_STYLE[kind].text)}>{st.text}</p>
+                  <p className="mt-1 flex items-center gap-3 font-mono text-[0.7rem] text-steel">
+                    <span>{d.phone}</span>
+                    {d.rating && (
+                      <span className="inline-flex items-center gap-1 text-camel">
+                        <Star className="size-3 fill-camel" /> {d.rating.avg}
+                        <span className="text-steel">({d.rating.count})</span>
+                      </span>
+                    )}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    if (window.confirm(`Did ${d.name} hand over ${birr(d.cash!.amount)}?`)) received.mutate(d.id);
-                  }}
-                  disabled={received.isPending}
-                  className="shrink-0 rounded-full bg-camel px-4 py-2 text-sm font-semibold text-ink disabled:opacity-50"
-                >
-                  Received
-                </button>
-              </div>
-            )}
-            {!d.linked && d.linkCode && d.isActive && (
-              <div className="mt-3 rounded-xl bg-ink/50 p-3 text-xs text-steel">
-                Not connected yet — send {d.name.split(' ')[0]} this invite. They tap it, press <b className="text-chalk">Start</b>, and their own Telegram is linked.
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <a
-                    href={`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/${botUsername}?start=drv_${d.linkCode}`)}&text=${encodeURIComponent('Hikma deliveries — tap to connect:')}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-lg bg-camel px-3 py-2 text-sm font-semibold text-ink"
-                  >
-                    Send invite on Telegram
-                  </a>
+                <ChevronRight className="size-5 shrink-0 text-steel transition-transform group-hover:translate-x-0.5 group-hover:text-chalk" />
+              </Link>
+
+              {(d.cash?.amount ?? 0) > 0 && (
+                <div className="mx-4 mb-3 flex items-center gap-3 rounded-2xl border border-camel/30 bg-camel/[0.07] p-3">
+                  <Banknote className="size-5 shrink-0 text-camel" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm">
+                      Holding <b className="font-mono">{birr(d.cash!.amount)}</b>
+                    </p>
+                    <p className="truncate text-[0.7rem] text-steel">{d.cash!.orders.map((o) => o.orderNumber).join(' · ')}</p>
+                  </div>
                   <button
-                    onClick={() => {
-                      void navigator.clipboard?.writeText(`https://t.me/${botUsername}?start=drv_${d.linkCode}`);
-                      toast.ok('Invite link copied');
-                    }}
-                    className="flex items-center gap-2 rounded-lg border border-camel/40 px-3 py-2 text-sm text-chalk"
+                    onClick={() => window.confirm(`Did ${d.name} hand over ${birr(d.cash!.amount)}?`) && received.mutate(d.id)}
+                    disabled={received.isPending}
+                    className="shrink-0 rounded-full bg-camel px-4 py-2 text-xs font-semibold text-ink disabled:opacity-50"
                   >
-                    Copy link <Copy className="size-4 text-steel" />
+                    Received
                   </button>
                 </div>
-              </div>
-            )}
-            <div className="mt-2 flex justify-end gap-3 text-xs">
-              {d.linked && (
-                <button onClick={() => patch.mutate({ id: d.id, body: { newCode: true } })} className="text-steel hover:text-chalk">
-                  Reconnect (new phone)
-                </button>
               )}
-              <button onClick={() => patch.mutate({ id: d.id, body: { isActive: !d.isActive } })} className="text-steel hover:text-chalk">
-                {d.isActive ? 'Deactivate' : 'Activate'}
-              </button>
+
+              {!d.linked && d.linkCode && d.isActive && (
+                <div className="mx-4 mb-3 rounded-2xl border border-[#2AABEE]/30 bg-[#2AABEE]/[0.06] p-3">
+                  <p className="text-xs text-steel">
+                    Not connected — send {d.name.split(' ')[0]} the invite; they tap it and press <b className="text-chalk">Start</b>.
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <a
+                      href={`https://t.me/share/url?url=${encodeURIComponent(`https://t.me/${botUsername}?start=drv_${d.linkCode}`)}&text=${encodeURIComponent('Hikma deliveries — tap to connect:')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#2AABEE] text-xs font-semibold text-white"
+                    >
+                      <Send className="size-3.5" /> Send invite
+                    </a>
+                    <button
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(`https://t.me/${botUsername}?start=drv_${d.linkCode}`);
+                        toast.ok('Invite link copied');
+                      }}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-seam px-3 text-xs"
+                    >
+                      <Copy className="size-3.5" /> Copy
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-1 border-t border-seam/50 px-2 py-1.5 text-[0.72rem] text-steel">
+                <a href={`tel:${d.phone}`} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 hover:bg-ink/40 hover:text-chalk">
+                  <Phone className="size-3.5" /> Call
+                </a>
+                {d.mapUrl && (
+                  <a href={d.mapUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 hover:bg-ink/40 hover:text-chalk">
+                    <MapPin className="size-3.5" /> {d.live ? 'Live' : 'Last'} location
+                  </a>
+                )}
+                <span className="ml-auto flex">
+                  {d.linked && (
+                    <button onClick={() => patch.mutate({ id: d.id, body: { newCode: true } })} className="rounded-full px-3 py-1.5 hover:bg-ink/40 hover:text-chalk" title="New phone? Send a fresh invite">
+                      Reconnect
+                    </button>
+                  )}
+                  <button onClick={() => patch.mutate({ id: d.id, body: { isActive: !d.isActive } })} className="rounded-full px-3 py-1.5 hover:bg-ink/40 hover:text-chalk">
+                    {d.isActive ? 'Pause' : 'Activate'}
+                  </button>
+                </span>
+              </div>
+            </article>
+          );
+        })}
+
+        {adding ? (
+          <div className="rounded-3xl border border-camel/40 bg-wool p-4">
+            <p className="mb-3 text-sm font-medium">New delivery person</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input name="dname" label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input name="dphone" label="Phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+            <div className="mt-3 flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setAdding(false)}>
+                Cancel
+              </Button>
+              <Button variant="accent" loading={add.isPending} disabled={name.trim().length < 2 || phone.trim().length < 9} onClick={() => add.mutate()}>
+                Add
+              </Button>
             </div>
           </div>
-        ))}
-        {adding ? (
-          <div className="grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <Input name="dname" label="Name" value={name} onChange={(e) => setName(e.target.value)} />
-            <Input name="dphone" label="Phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <Button variant="accent" loading={add.isPending} disabled={name.trim().length < 2 || phone.trim().length < 9} onClick={() => add.mutate()}>
-              Add
-            </Button>
-          </div>
         ) : (
-          <button onClick={() => setAdding(true)} className="flex w-full items-center gap-4 px-4 py-3.5 text-left hover:bg-white/[0.02]">
-            <span className="grid size-10 place-items-center rounded-xl bg-chalk text-ink">
-              <Plus className="size-4" />
-            </span>
-            Add a delivery person
+          <button onClick={() => setAdding(true)} className="flex w-full items-center justify-center gap-2 rounded-3xl border border-dashed border-seam py-4 text-sm text-steel transition-colors hover:border-camel hover:text-camel">
+            <Plus className="size-4" /> Add a delivery person
           </button>
         )}
       </div>
-      <p className="mt-2 px-1 text-xs leading-relaxed text-steel">
-        Drivers send /online in the bot and share their live location. “Find nearest driver” offers the job to the closest free driver; they accept with an arrival time.
-        When they take the items you tap “Handed over” — the customer gets the delivery code, and the driver types it at the door.
+      <p className="mt-3 px-1 text-xs leading-relaxed text-steel">
+        Drivers tap 🟢 Online in the bot and share their live location. “Choose a driver” lists the nearest free ones; when they arrive you tap “Handed over”, and they type the customer’s code at the door.
       </p>
     </section>
   );
