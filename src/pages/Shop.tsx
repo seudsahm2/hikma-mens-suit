@@ -6,6 +6,7 @@ import { Button, Empty, ErrorState, Sheet, Spinner } from '../components/ui';
 import { useCategories, useFacets, useInfiniteProducts, type ProductFilters } from '../hooks/queries';
 import { useT } from '../lib/i18n';
 import { cn, sortSizes } from '../lib/format';
+import { Dropdown } from '../components/ui/Dropdown';
 
 const SORTS = ['new', 'price_asc', 'price_desc'] as const;
 type Sort = (typeof SORTS)[number];
@@ -148,18 +149,14 @@ export default function Shop({ search = false }: { search?: boolean }) {
         <div className="mt-6 flex items-center justify-between border-b border-seam pb-4">
           <span className="font-mono text-xs text-steel">{t('shop.items', { n: total })}</span>
           <div className="flex items-center gap-2">
-            <select
-              value={filters.sort}
-              onChange={(e) => setParam('sort', e.target.value === 'new' ? null : e.target.value)}
-              className="h-9 rounded-full border border-seam bg-ink px-3 text-sm text-chalk/90 focus:border-camel focus:outline-none"
-              aria-label={t('shop.sort')}
-            >
-              {SORTS.map((s) => (
-                <option key={s} value={s}>
-                  {t(`sort.${s}`)}
-                </option>
-              ))}
-            </select>
+            <Dropdown
+              size="pill"
+              align="right"
+              ariaLabel={t('shop.sort')}
+              value={filters.sort ?? 'new'}
+              onChange={(v) => setParam('sort', v === 'new' ? null : v)}
+              options={SORTS.map((s) => ({ value: s, label: t(`sort.${s}`) }))}
+            />
             <button
               onClick={() => setFilterOpen(true)}
               className={cn('flex h-9 items-center gap-2 rounded-full border px-3 text-sm', activeCount ? 'border-camel text-camel' : 'border-seam text-chalk/90')}

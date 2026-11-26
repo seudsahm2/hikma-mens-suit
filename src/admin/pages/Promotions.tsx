@@ -9,6 +9,8 @@ import { birr, cn } from '../../lib/format';
 import type { Category } from '../../lib/types';
 import type { AdminProduct } from '../types';
 import { adminApi } from '../ui';
+import { Dropdown } from '../../components/ui/Dropdown';
+import { DateTimePicker } from '../../components/ui/DateTimePicker';
 
 const errMsg = (err: unknown) => (err instanceof ApiError ? err.message : 'Something went wrong');
 
@@ -89,8 +91,6 @@ function promoState(p: Promo) {
   return { label: 'Running', tone: 'text-ok' };
 }
 
-const toLocal = (iso: string | null) => (iso ? new Date(new Date(iso).getTime() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16) : '');
-const fromLocal = (v: string) => (v ? new Date(v).toISOString() : null);
 
 const EMPTY: Omit<Promo, 'id' | 'usedCount'> = {
   name: '',
@@ -217,19 +217,9 @@ function PromoSheet({ initial, categories, onClose }: { initial: Promo | null; c
 
         <div className="grid grid-cols-2 gap-3">
           <Input name="pmin" label="Minimum order (ETB)" inputMode="numeric" placeholder="0" value={p.minSubtotal ? String(p.minSubtotal) : ''} onChange={(e) => set('minSubtotal', Number(e.target.value.replace(/\D/g, '')) || 0)} />
-          <label className="block">
-            <span className="mb-1.5 block text-[0.8rem] text-steel">Only for</span>
-            <select value={p.categorySlug ?? ''} onChange={(e) => set('categorySlug', e.target.value || null)} className="h-12 w-full rounded-xl border border-seam bg-wool px-3 text-chalk">
-              <option value="">Everything</option>
-              {categories.map((c) => (
-                <option key={c.slug} value={c.slug}>
-                  {c.nameEn}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Input name="pstart" label="Starts" type="datetime-local" value={toLocal(p.startsAt)} onChange={(e) => set('startsAt', fromLocal(e.target.value))} />
-          <Input name="pend" label="Ends" type="datetime-local" value={toLocal(p.endsAt)} onChange={(e) => set('endsAt', fromLocal(e.target.value))} />
+          <Dropdown label="Only for" value={p.categorySlug ?? ''} onChange={(v) => set('categorySlug', v || null)} options={[{ value: '', label: 'Everything' }, ...categories.map((c) => ({ value: c.slug, label: c.nameEn }))]} />
+          <DateTimePicker label="Starts" placeholder="Right away" value={p.startsAt} onChange={(v) => set('startsAt', v)} defaultTime="00:00" />
+          <DateTimePicker label="Ends" placeholder="No end" value={p.endsAt} onChange={(v) => set('endsAt', v)} defaultTime="23:55" />
           <Input name="pmax" label="Limit (orders)" inputMode="numeric" placeholder="No limit" value={p.maxUses ? String(p.maxUses) : ''} onChange={(e) => set('maxUses', Number(e.target.value.replace(/\D/g, '')) || null)} />
         </div>
 

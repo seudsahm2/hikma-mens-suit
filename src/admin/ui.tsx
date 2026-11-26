@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { api } from '../lib/api';
 import { cn } from '../lib/format';
 import type { OrderStatus, PaymentStatus } from '../lib/types';
+import { Dropdown } from '../components/ui/Dropdown';
 
 /** Admin API calls always use the staff session. */
 export function adminApi<T>(path: string, opts: Parameters<typeof api>[1] = {}) {
@@ -122,20 +123,7 @@ export function Select({
   className?: string;
 }) {
   return (
-    <label className={cn('block', className)}>
-      {label && <span className="mb-1.5 block text-[0.8rem] text-steel">{label}</span>}
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-12 w-full rounded-xl border border-seam bg-wool px-3 text-chalk focus:border-camel focus:outline-none"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Dropdown label={label} value={value} onChange={onChange} options={options} className={className} />
   );
 }
 

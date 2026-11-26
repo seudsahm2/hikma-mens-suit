@@ -10,6 +10,7 @@ import type { Category } from '../../lib/types';
 import type { AdminProduct } from '../types';
 import { suggestAmharicDescription, suggestAmharicName } from '../../lib/amharic';
 import { adminApi, Card, Toggle } from '../ui';
+import { Dropdown } from '../../components/ui/Dropdown';
 
 const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
 const int = (s: string) => (s.trim() === '' ? null : Number(s.replace(/\D/g, '')));
@@ -526,17 +527,9 @@ function SavedPhotos({ product, onChange, missing }: { product: AdminProduct; on
       {product.images.map((img, i) => (
         <PhotoTile key={img.id} src={img.urls.sm} cover={i === 0} onRemove={() => remove(img.id)} onCover={() => makeCover(img.id)}>
           {colors.length > 1 && (
-            <select
-              value={img.color ?? ''}
-              onChange={(e) => setColor(img.id, e.target.value)}
-              className="mt-1 h-8 w-full rounded-md border border-seam bg-ink px-1 text-xs"
-              aria-label="Photo colour"
-            >
-              <option value="">Any colour</option>
-              {colors.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+            <div className="mt-1">
+              <Dropdown size="sm" ariaLabel="Photo colour" value={img.color ?? ''} onChange={(v) => setColor(img.id, v)} options={[{ value: '', label: 'Any colour' }, ...colors.map((c) => ({ value: c, label: c }))]} />
+            </div>
           )}
         </PhotoTile>
       ))}
