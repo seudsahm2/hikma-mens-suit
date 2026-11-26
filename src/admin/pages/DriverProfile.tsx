@@ -5,6 +5,8 @@ import { ArrowLeft, Clock, MapPin, Package, Phone, Star } from 'lucide-react';
 import { ErrorState, PageLoader } from '../../components/ui';
 import { birr, cn, formatDate, formatDateTime } from '../../lib/format';
 import { adminApi, Card } from '../ui';
+import { useStaff } from '../../store/auth';
+import { FaydaIdentity } from './FaydaIdentity';
 
 interface Profile {
   driver: { id: string; name: string; phone: string; isActive: boolean; linked: boolean; isOnline: boolean; since: string; locationAt: string | null; mapUrl: string | null };
@@ -53,6 +55,7 @@ function Stars({ value, size = 'sm' }: { value: number; size?: 'sm' | 'lg' }) {
 
 export default function DriverProfile() {
   const { id } = useParams();
+  const isOwner = useStaff((s) => s.user?.role === 'OWNER');
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin', 'driver', id],
     queryFn: () => adminApi<Profile>(`/drivers/${id}/profile`),
@@ -133,6 +136,8 @@ export default function DriverProfile() {
           </div>
         </Card>
       )}
+
+      {isOwner && <FaydaIdentity subject={{ type: 'driver', id: d.id, name: d.name }} />}
 
       {/* How they do */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, Copy, ImagePlus, Loader2, LocateFixed, MapPin, Phone } from 'lucide-react';
+import { BadgeCheck, Check, Copy, ImagePlus, Loader2, LocateFixed, MapPin, Phone } from 'lucide-react';
 import { PrimaryAction } from '../components/layout/PrimaryAction';
 import { TelegramLogin } from '../components/layout/TelegramLogin';
 import { Input, PageLoader, Price, Textarea } from '../components/ui';
@@ -10,8 +10,8 @@ import { useConfig } from '../hooks/queries';
 import { api, ApiError } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { birr, cn } from '../lib/format';
-import { getLocation, haptic, isMiniApp, openLocationSettings, requestPhone } from '../lib/telegram';
-import type { Order, PaymentMethodPublic } from '../lib/types';
+import { getLocation, haptic, isMiniApp, openExternal, openLocationSettings, requestPhone } from '../lib/telegram';
+import type { Order, PaymentMethodPublic, User } from '../lib/types';
 import { useCustomer } from '../store/auth';
 import { cartSubtotal, useCart } from '../store/cart';
 import { CodeAndCredit, DiscountRows, forgetInviteCode, savedInviteCode, useQuote } from '../components/checkout/Offers';
@@ -149,10 +149,32 @@ export default function Checkout() {
   const hasPreorder = lines.some((l) => l.preorder);
   const dueNow = canDeposit && (deposit || hasPreorder) ? Math.ceil((total * config.store.depositPercent) / 100) : total;
 
-  const useTelegramPhone = async () => {
-    const p = await requestPhone();
-    if (p) setPhone(p);
+  // Verified phone: Telegram sends the shared contact to our bot, which checks it's the sender's own
+  // number. We wait for the bot to confirm (the app's own answer could be faked), then use that number.
+  const [phoneWait, setPhoneWait] = useState(false);
+  const waitForVerifiedPhone = async () => {
+    setPhoneWait(true);
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, i < 5 ? 1500 : 3000));
+      const me = await api<{ user: User; token?: string }>('/auth/me').catch(() => null);
+      if (me?.user?.phoneVerified && me.user.phone) {
+        useCustomer.setState({ user: me.user });
+        setPhone(me.user.phone);
+        haptic.success();
+        break;
+      }
+    }
+    setPhoneWait(false);
   };
+  const useTelegramPhone = async () => {
+    if (isMiniApp) {
+      const p = await requestPhone();
+      if (!p) return;
+      setPhone(p);
+    } else openExternal(`https://t.me/${config.telegram.botUsername}?start=phone`);
+    void waitForVerifiedPhone();
+  };
+  const phoneIsVerified = Boolean(user?.phoneVerified && user.phone && user.phone === phone.replace(/s/g, ''));
 
   // Share GPS location, then show the place name and fill the address fields from it
   // Fresh device GPS first (never a cached position); Telegram's stored location only as a backup.
@@ -286,10 +308,18 @@ export default function Checkout() {
               placeholder="09…"
               error={errors.phone && ' '}
             />
-            {isMiniApp && (
-              <button type="button" onClick={useTelegramPhone} className="mt-2 inline-flex items-center gap-2 text-sm text-camel">
-                <Phone className="size-4" /> {t('checkout.sharePhone')}
-              </button>
+            {phoneIsVerified ? (
+              <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-ok">
+                <BadgeCheck className="size-4" /> {t('checkout.phoneVerified')}
+              </p>
+            ) : phoneWait ? (
+              <p className="mt-2 text-sm text-steel">{t('checkout.phoneWaiting')}</p>
+            ) : (
+              token && (
+                <button type="button" onClick={useTelegramPhone} className="mt-2 inline-flex items-center gap-2 text-sm text-camel">
+                  <Phone className="size-4" /> {isMiniApp ? t('checkout.sharePhone') : t('checkout.verifyPhone')}
+                </button>
+              )
             )}
           </div>
         </div>

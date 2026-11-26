@@ -153,6 +153,8 @@ export interface User {
   phone: string | null;
   telegramId: string | null;
   telegramUsername: string | null;
+  /** phone confirmed by Telegram (Share my contact) */
+  phoneVerified?: boolean;
   photoUrl: string | null;
   languageCode: string;
   city: string | null;
@@ -208,6 +210,7 @@ export interface Order {
   /** staff only: a cancel waiting to take effect (undo window) */
   cancelAt?: string | null;
   driverRating?: number | null;
+  customerPhoneVerified?: boolean;
   canRateDriver?: boolean;
   /** staff only: cancelled after money came in */
   refund?: { due: boolean; amount: number; confirmed: boolean; refundedAt: string | null; note: string | null };

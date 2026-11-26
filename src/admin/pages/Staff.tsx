@@ -12,6 +12,7 @@ import { toast } from '../../components/ui/toast';
 import { ApiError } from '../../lib/api';
 import { cn, formatDateTime } from '../../lib/format';
 import { adminApi, Card, PageHeader } from '../ui';
+import { FaydaIdentity } from './FaydaIdentity';
 
 interface Invite { id: string; contact: string; status: 'sent' | 'accepted' | 'declined'; name: string | null; username: string | null; createdAt: string; respondedAt: string | null; link: string }
 interface Person { key: string; kind: 'owner' | 'admin' | 'driver' | 'customer'; name: string; phone: string | null; username: string | null; telegramId: string | null; staffId: string | null; active: boolean }
@@ -22,6 +23,7 @@ const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : 'Failed');
 export default function Staff() {
   const qc = useQueryClient();
   const [contact, setContact] = useState('');
+  const [idOpen, setIdOpen] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [debounced, setDebounced] = useState('');
   useEffect(() => {
@@ -150,6 +152,10 @@ export default function Staff() {
                 {p.kind === 'owner' ? (
                   <ShieldCheck className="size-4 text-camel" />
                 ) : isAdmin && p.staffId ? (
+                  <span className="flex items-center gap-3">
+                  <button type="button" onClick={() => setIdOpen(idOpen === p.staffId ? null : p.staffId)} className="text-xs text-camel">
+                    Fayda ID
+                  </button>
                   <button
                     type="button"
                     onClick={() => window.confirm(`Remove admin access for ${p.name}? They’re told on Telegram.`) && revoke.mutate(p.staffId!)}
@@ -157,6 +163,7 @@ export default function Staff() {
                   >
                     Remove admin
                   </button>
+                  </span>
                 ) : p.telegramId ? (
                   <button
                     type="button"
@@ -169,6 +176,14 @@ export default function Staff() {
               </li>
             );
           })}
+          {idOpen && (() => {
+            const p = (people.data ?? []).find((x) => x.staffId === idOpen);
+            return p ? (
+              <li className="py-3">
+                <FaydaIdentity subject={{ type: 'staff', id: idOpen, name: p.name }} />
+              </li>
+            ) : null;
+          })()}
           {people.data && !people.data.length && <li className="py-6 text-center text-sm text-steel">Nobody found.</li>}
         </ul>
       </Card>

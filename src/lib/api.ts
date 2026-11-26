@@ -31,7 +31,7 @@ export function configureApi(opts: { getToken: TokenGetter; onUnauthorized: (kin
   onUnauthorized = opts.onUnauthorized;
 }
 
-const SIGN_IN_PATHS = /^\/auth\/(telegram\/|staff\/login|dev$)/;
+const SIGN_IN_PATHS = /^\/auth\/(telegram\/|staff\/(login|telegram|forgot|reset)|dev$)/;
 
 function defaultAuth(path: string): AuthKind {
   if (SIGN_IN_PATHS.test(path)) return 'none';
@@ -84,4 +84,11 @@ export async function api<T>(
     throw new ApiError(res.status, e?.message ?? 'Something went wrong', e?.code, e?.fields, retryAfter);
   }
   return json as T;
+}
+
+/** Binary download with the staff session (e.g. an ID photo that must never be a public link). */
+export async function apiBlob(path: string): Promise<Blob | null> {
+  const token = getToken('staff');
+  const res = await fetch(buildUrl(path), { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: 'no-store' });
+  return res.ok ? res.blob() : null;
 }

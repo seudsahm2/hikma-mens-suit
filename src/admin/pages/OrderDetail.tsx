@@ -223,7 +223,14 @@ export default function OrderDetail() {
         <div className="space-y-6">
           <Card title="Customer">
             <p className="font-medium">{order.customerName}</p>
-            <p className="mt-1 font-mono text-sm text-steel">{order.customerPhone}</p>
+            <p className="mt-1 flex items-center gap-1.5 font-mono text-sm text-steel">
+              {order.customerPhone}
+              {order.customerPhoneVerified && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-ok/15 px-2 py-px font-sans text-[0.65rem] text-ok" title="Shared from their Telegram account">
+                  ✓ Telegram-verified
+                </span>
+              )}
+            </p>
             {order.customerPhone && (
             <div className="mt-4 flex flex-wrap gap-2">
               <a href={`tel:${order.customerPhone}`} className="inline-flex h-9 items-center gap-2 rounded-full border border-seam px-3 text-sm hover:border-steel">
