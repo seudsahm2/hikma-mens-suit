@@ -21,6 +21,7 @@ export interface DriverRow {
   busy: boolean;
   /** the order keeping the driver busy */
   busyWith?: { id: string; orderNumber: string } | null;
+  rating?: { avg: number; count: number } | null;
   /** location shared in the last 30 minutes */
   live: boolean;
   distanceKm: number | null;
@@ -33,8 +34,9 @@ export interface DriverRow {
 /** "Online · 1.2 km from the shop" */
 export function driverStatus(d: DriverRow) {
   if (!d.linked) return { text: 'Not connected', tone: 'text-camel' };
-  if (!d.isOnline) return { text: 'Offline', tone: 'text-steel' };
+  // A driver carrying an order is busy even if they switched to offline
   if (d.busy) return { text: d.busyWith ? `Busy · ${d.busyWith.orderNumber}` : 'Busy with a delivery', tone: 'text-camel' };
+  if (!d.isOnline) return { text: 'Offline', tone: 'text-steel' };
   const where = d.distanceKm !== null ? ` · ${d.distanceKm} km from the shop${d.live ? '' : ' (old)'}` : ' · location not shared';
   return { text: `Available${where}`, tone: 'text-ok' };
 }
@@ -83,10 +85,20 @@ export function DriversSection({ botUsername }: { botUsername: string }) {
               <span className="grid size-10 place-items-center rounded-xl bg-camel/15 text-camel">
                 <Bike className="size-4" />
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block">{d.name}</span>
-                <span className="block font-mono text-xs text-steel">{d.phone}</span>
-              </span>
+              {/* Tap → full profile: current job, stats, ratings, history */}
+              <Link to={`/admin/drivers/${d.id}`} className="group min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="group-hover:text-camel">{d.name}</span>
+                  {d.rating && (
+                    <span className="inline-flex items-center gap-0.5 font-mono text-xs text-camel">
+                      ★ {d.rating.avg}
+                      <span className="text-steel">({d.rating.count})</span>
+                    </span>
+                  )}
+                  {d.rating && d.rating.avg >= 4.5 && d.rating.count >= 3 && <span className="rounded-full bg-camel px-1.5 py-px text-[0.6rem] font-semibold text-ink">TOP</span>}
+                </span>
+                <span className="block font-mono text-xs text-steel">{d.phone} · profile ›</span>
+              </Link>
               <span className={cn('text-right text-xs', driverStatus(d).tone)}>
                 {d.busy && d.busyWith ? (
                   // Tap through to the order keeping them busy (e.g. one left "On the way")

@@ -286,6 +286,8 @@ export function OrderPage() {
         )}
       </section>
 
+      <RateDelivery order={order} />
+
       {/* A cancelled order with nothing paid has nothing to prove — no receipt */}
       {(order.status !== 'CANCELLED' || order.amountPaid > 0) && (
         <div className="mt-8 flex justify-center">
@@ -297,5 +299,46 @@ export function OrderPage() {
         {t('order.continueShopping')}
       </Link>
     </div>
+  );
+}
+
+/** ⭐ the delivery person (once, after delivery) — the owner sees it on the driver's profile. */
+function RateDelivery({ order }: { order: Order }) {
+  const { t } = useT();
+  const qc = useQueryClient();
+  const [sent, setSent] = useState<number | null>(null);
+  const [hover, setHover] = useState(0);
+  const rating = sent ?? order.driverRating ?? null;
+  if (!order.canRateDriver && !rating) return null;
+  const rate = async (stars: number) => {
+    setSent(stars);
+    haptic.success();
+    try {
+      await api(`/orders/${order.orderNumber}/rate-driver`, { body: { stars } });
+      void qc.invalidateQueries({ queryKey: ['order', order.orderNumber] });
+    } catch (err) {
+      setSent(null);
+      toast.error(err instanceof ApiError ? err.message : 'Something went wrong');
+    }
+  };
+  return (
+    <section className="mt-8 rounded-2xl border border-seam p-4 text-center">
+      <p className="text-sm text-steel">{rating ? t('rd.thanks') : t('rd.ask')}</p>
+      <div className="mt-2 flex justify-center gap-1" onPointerLeave={() => setHover(0)}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            disabled={Boolean(rating)}
+            onPointerEnter={() => setHover(n)}
+            onClick={() => rate(n)}
+            className="p-1 text-3xl leading-none transition-transform enabled:active:scale-90"
+            aria-label={`${n} / 5`}
+          >
+            <span className={cn((hover || rating || 0) >= n ? 'text-camel' : 'text-seam')}>★</span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

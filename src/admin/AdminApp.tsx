@@ -14,6 +14,7 @@ import { adminApi } from './ui';
 const Dashboard = lazyRetry(() => import('./pages/Dashboard'));
 const Orders = lazyRetry(() => import('./pages/Orders'));
 const OrderDetail = lazyRetry(() => import('./pages/OrderDetail'));
+const DriverProfile = lazyRetry(() => import('./pages/DriverProfile'));
 const Products = lazyRetry(() => import('./pages/Products'));
 const ProductEditor = lazyRetry(() => import('./pages/ProductEditor'));
 const Customers = lazyRetry(() => import('./pages/Customers'));
@@ -291,6 +292,7 @@ function Shell() {
             <Route index element={<Dashboard />} />
             <Route path="orders" element={<Orders />} />
             <Route path="orders/:id" element={<OrderDetail />} />
+            <Route path="drivers/:id" element={<DriverProfile />} />
             <Route path="products" element={<Products />} />
             <Route path="products/new" element={<ProductEditor />} />
             <Route path="products/:id" element={<ProductEditor />} />

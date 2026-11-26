@@ -207,6 +207,8 @@ export interface Order {
   status: OrderStatus;
   /** staff only: a cancel waiting to take effect (undo window) */
   cancelAt?: string | null;
+  driverRating?: number | null;
+  canRateDriver?: boolean;
   paymentStatus: PaymentStatus;
   source: 'WEB' | 'MINI_APP' | 'ADMIN' | 'COUNTER';
   customerName: string;
