@@ -7,7 +7,7 @@ import { toast } from '../../components/ui/toast';
 import { ApiError } from '../../lib/api';
 import { birr, cn, formatDateTime } from '../../lib/format';
 import type { Order, OrderStatus } from '../../lib/types';
-import { adminApi, Card, PaymentBadge, StatusBadge, statusLabel } from '../ui';
+import { adminApi, Card, OrderPaymentBadge, StatusBadge, statusLabel } from '../ui';
 import { DriverCard } from './Drivers';
 import { ConfirmDelivered } from './ConfirmDelivered';
 import { CancelCountdown } from './CancelCountdown';
@@ -88,7 +88,7 @@ export default function OrderDetail() {
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <h1 className="font-mono text-2xl">{order.orderNumber}</h1>
         <StatusBadge status={order.status} />
-        <PaymentBadge status={order.paymentStatus} />
+        <OrderPaymentBadge order={order} />
         <span className="text-xs text-steel">{formatDateTime(order.createdAt)}</span>
       </div>
 
@@ -258,6 +258,8 @@ export default function OrderDetail() {
 
           <DriverCard order={order} onChange={(o) => onDone(o, 'Saved')} />
 
+          {order.refund && <RefundCard order={order} onDone={(o) => onDone(o, 'Marked refunded')} />}
+
           {open && order.cancelAt && (
             <CancelCountdown order={order as Order & { cancelAt: string }} onChange={(o) => qc.setQueryData(['admin', 'order', id], o)} />
           )}
@@ -316,6 +318,46 @@ export default function OrderDetail() {
         </div>
       </div>
       <ConfirmDelivered order={order} open={confirmDelivered} onClose={() => setConfirmDelivered(false)} onDone={(o) => onDone(o, 'Saved')} />
+    </div>
+  );
+}
+
+/** Cancelled after money came in: the refund is a task until someone records how it was given back. */
+function RefundCard({ order, onDone }: { order: Order; onDone: (o: Order) => void }) {
+  const r = order.refund!;
+  const [note, setNote] = useState('');
+  const save = useMutation({
+    mutationFn: () => adminApi<{ order: Order }>(`/orders/${order.id}/refunded`, { body: { note: note.trim() } }),
+    onSuccess: (x) => onDone(x.order),
+    onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Failed'),
+  });
+  if (!r.due)
+    return (
+      <Card title="Refund">
+        <p className="text-sm text-ok">
+          ✓ Refunded {birr(r.amount)}
+          {r.refundedAt && ` on ${formatDateTime(r.refundedAt)}`}
+        </p>
+        {r.note && <p className="mt-1 text-sm text-steel">{r.note}</p>}
+      </Card>
+    );
+  return (
+    <div className="rounded-2xl border border-danger/40 bg-danger/[0.06] p-4">
+      <p className="font-medium">💸 Refund due · {birr(r.amount)}</p>
+      <p className="mt-1 text-sm text-steel">
+        {r.confirmed ? 'The customer paid, then the order was cancelled.' : 'The customer sent payment proof before the cancel — check the transfer, and give it back if it arrived.'}
+      </p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="How? e.g. telebirr ref 8XY12… / cash at the shop"
+          className="h-11 flex-1 rounded-xl border border-seam bg-wool px-3 text-sm focus:border-camel focus:outline-none"
+        />
+        <Button variant="accent" loading={save.isPending} disabled={note.trim().length < 2} onClick={() => save.mutate()}>
+          Mark refunded
+        </Button>
+      </div>
     </div>
   );
 }

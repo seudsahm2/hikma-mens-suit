@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { api } from '../lib/api';
 import { cn } from '../lib/format';
-import type { OrderStatus, PaymentStatus } from '../lib/types';
+import type { Order, OrderStatus, PaymentStatus } from '../lib/types';
 import { Dropdown } from '../components/ui/Dropdown';
 
 /** Admin API calls always use the staff session. */
@@ -88,6 +88,24 @@ export function PaymentBadge({ status }: { status: PaymentStatus }) {
   );
 }
 export const statusLabel = (s: OrderStatus) => STATUS_LABEL[s];
+
+/**
+ * Payment state that makes sense for the order: a cancelled order is never "checking payment" —
+ * it either owes the customer a refund, was refunded, or had no money involved.
+ */
+export function OrderPaymentBadge({ order }: { order: Pick<Order, 'status' | 'paymentStatus'> & { refund?: Order['refund'] } }) {
+  if (order.status !== 'CANCELLED') return <PaymentBadge status={order.paymentStatus} />;
+  if (!order.refund) return <span className="text-[0.72rem] text-steel">No payment</span>;
+  return order.refund.due ? (
+    <span className="inline-flex items-center gap-1.5 text-[0.72rem] text-danger">
+      <span className="size-1.5 animate-pulse rounded-full bg-current" /> Refund due
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1.5 text-[0.72rem] text-steel">
+      <span className="size-1.5 rounded-full bg-current" /> Refunded
+    </span>
+  );
+}
 
 export function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
   return (

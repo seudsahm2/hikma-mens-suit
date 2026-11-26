@@ -209,6 +209,8 @@ export interface Order {
   cancelAt?: string | null;
   driverRating?: number | null;
   canRateDriver?: boolean;
+  /** staff only: cancelled after money came in */
+  refund?: { due: boolean; amount: number; confirmed: boolean; refundedAt: string | null; note: string | null };
   paymentStatus: PaymentStatus;
   source: 'WEB' | 'MINI_APP' | 'ADMIN' | 'COUNTER';
   customerName: string;

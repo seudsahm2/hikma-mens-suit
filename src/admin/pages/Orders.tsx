@@ -7,10 +7,10 @@ import { toast } from '../../components/ui/toast';
 import { ApiError } from '../../lib/api';
 import { birr, formatDateTime } from '../../lib/format';
 import type { Order, OrderStatus } from '../../lib/types';
-import { adminApi, PageHeader, PaymentBadge, StatusBadge, Tabs } from '../ui';
+import { adminApi, OrderPaymentBadge, PageHeader, StatusBadge, Tabs } from '../ui';
 import { CancelCountdown } from './CancelCountdown';
 
-type Tab = 'open' | 'review' | 'all' | 'done' | 'pickedup' | 'cancelled';
+type Tab = 'open' | 'review' | 'all' | 'done' | 'pickedup' | 'cancelled' | 'refunds';
 
 const TAB_QUERY: Record<Tab, Record<string, string>> = {
   open: { status: 'OPEN' },
@@ -19,6 +19,7 @@ const TAB_QUERY: Record<Tab, Record<string, string>> = {
   done: { status: 'DELIVERED' },
   pickedup: { status: 'PICKED_UP' },
   cancelled: { status: 'CANCELLED' },
+  refunds: { refund: 'due' },
 };
 
 export default function Orders() {
@@ -37,7 +38,7 @@ export default function Orders() {
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['admin', 'orders', tab, debounced, page],
-    queryFn: () => adminApi<{ orders: Order[]; total: number; hasMore: boolean; needsReview: number }>('/orders', { query: { ...TAB_QUERY[tab], q: debounced, page } }),
+    queryFn: () => adminApi<{ orders: Order[]; total: number; hasMore: boolean; needsReview: number; refundsDue: number }>('/orders', { query: { ...TAB_QUERY[tab], q: debounced, page } }),
     placeholderData: keepPreviousData,
     refetchInterval: 30_000,
   });
@@ -55,6 +56,7 @@ export default function Orders() {
             { value: 'done', label: 'Delivered' },
             { value: 'pickedup', label: 'Picked up' },
             { value: 'cancelled', label: 'Cancelled' },
+            ...(data?.refundsDue || tab === 'refunds' ? [{ value: 'refunds' as const, label: 'Refunds', count: data?.refundsDue }] : []),
             { value: 'all', label: 'All' },
           ]}
         />
@@ -99,7 +101,7 @@ export default function Orders() {
                     <span className="font-mono">{birr(o.total)}</span>
                   </div>
                   <div className="mt-1 flex items-center justify-between">
-                    <PaymentBadge status={o.paymentStatus} />
+                    <OrderPaymentBadge order={o} />
                     <span className="text-xs text-steel">{formatDateTime(o.createdAt)}</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-2 border-t border-seam/70 pt-3">
@@ -158,7 +160,7 @@ export default function Orders() {
                       </div>
                     </td>
                     <td>
-                      <PaymentBadge status={o.paymentStatus} />
+                      <OrderPaymentBadge order={o} />
                       <div className="text-xs text-steel">{o.payment.label}</div>
                     </td>
                     <td>
