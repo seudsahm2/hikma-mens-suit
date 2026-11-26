@@ -2,7 +2,7 @@ import { Suspense, useState } from 'react';
 import { lazyRetry } from '../lib/lazy';
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, ExternalLink, History, LifeBuoy, LineChart, LogOut, Send, ReceiptText, Settings, Shirt, Star, Store, Tag, Users, UserCog } from 'lucide-react';
+import { BarChart3, DatabaseBackup, ExternalLink, History, LifeBuoy, LineChart, LogOut, Send, ReceiptText, Settings, Shirt, Star, Store, Tag, Users, UserCog } from 'lucide-react';
 import { Wordmark } from '../components/brand/Mark';
 import { Button, Input, PageLoader } from '../components/ui';
 import { api, ApiError } from '../lib/api';
@@ -24,6 +24,7 @@ const PromotionsPage = lazyRetry(() => import('./pages/Promotions'));
 const CarePage = lazyRetry(() => import('./pages/Care'));
 const InsightsPage = lazyRetry(() => import('./pages/Insights'));
 const ActivityPage = lazyRetry(() => import('./pages/Activity'));
+const BackupsPage = lazyRetry(() => import('./pages/Backups'));
 const Staff = lazyRetry(() => import('./pages/Staff'));
 const SettingsPage = lazyRetry(() => import('./pages/Settings'));
 
@@ -184,6 +185,7 @@ function Shell() {
           { to: '/admin/promotions', label: 'Promotions', icon: Tag },
           { to: '/admin/staff', label: 'Admins', icon: UserCog },
           { to: '/admin/activity', label: 'Activity', icon: History },
+          { to: '/admin/backups', label: 'Backups', icon: DatabaseBackup },
           { to: '/admin/settings', label: 'Settings', icon: Settings },
         ]
       : []),
@@ -302,6 +304,7 @@ function Shell() {
             <Route path="care" element={<CarePage />} />
             <Route path="insights" element={<InsightsPage />} />
             {isOwner && <Route path="activity" element={<ActivityPage />} />}
+            {isOwner && <Route path="backups" element={<BackupsPage />} />}
             <Route path="exchanges" element={<Navigate to="/admin/care?tab=exchanges" replace />} />
             {isOwner && <Route path="promotions" element={<PromotionsPage />} />}
             {isOwner && <Route path="staff" element={<Staff />} />}
