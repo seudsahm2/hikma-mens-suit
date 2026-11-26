@@ -1,14 +1,15 @@
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { lazyRetry } from '../lib/lazy';
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, DatabaseBackup, ExternalLink, History, LifeBuoy, LineChart, LogOut, Send, ReceiptText, Settings, Shirt, Star, Store, Tag, Users, UserCog } from 'lucide-react';
+import { BarChart3, DatabaseBackup, Moon, Sun, ExternalLink, History, LifeBuoy, LineChart, LogOut, Send, ReceiptText, Settings, Shirt, Star, Store, Tag, Users, UserCog } from 'lucide-react';
 import { Wordmark } from '../components/brand/Mark';
 import { Button, Input, PageLoader } from '../components/ui';
 import { api, ApiError } from '../lib/api';
 import { cn } from '../lib/format';
 import type { User } from '../lib/types';
 import { useStaff } from '../store/auth';
+import { useTheme } from '../store/theme';
 import { adminApi } from './ui';
 
 const Dashboard = lazyRetry(() => import('./pages/Dashboard'));
@@ -28,6 +29,75 @@ const BackupsPage = lazyRetry(() => import('./pages/Backups'));
 const Staff = lazyRetry(() => import('./pages/Staff'));
 const SettingsPage = lazyRetry(() => import('./pages/Settings'));
 
+/** "Sign in with Telegram": the bot confirms who you are; only Telegram accounts linked to an admin get in. */
+function TelegramStaffLogin({ onPassword }: { onPassword: () => void }) {
+  const setSession = useStaff((s) => s.setSession);
+  const [state, setState] = useState<'idle' | 'waiting' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+  const poll = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => (poll.current ? clearInterval(poll.current) : undefined), []);
+
+  const start = async () => {
+    const tab = window.open('', '_blank');
+    setState('waiting');
+    setMessage('');
+    try {
+      const r = await api<{ token: string; url: string }>('/auth/staff/telegram', { method: 'POST' });
+      if (tab) tab.location.href = r.url;
+      else window.location.href = r.url;
+      const until = Date.now() + 5 * 60_000;
+      poll.current = setInterval(async () => {
+        if (Date.now() > until) {
+          clearInterval(poll.current!);
+          setState('error');
+          setMessage('The link expired — try again.');
+          return;
+        }
+        try {
+          const res = await api<{ status: string; token?: string; user?: User }>(`/auth/staff/telegram/${r.token}`);
+          if (res.status === 'confirmed' && res.token && res.user) {
+            clearInterval(poll.current!);
+            setSession({ token: res.token, user: res.user });
+          }
+        } catch (err) {
+          clearInterval(poll.current!);
+          setState('error');
+          setMessage(err instanceof ApiError && err.status === 403 ? 'This Telegram account isn’t an admin. Ask the owner for an invite.' : 'The link expired — try again.');
+        }
+      }, 2000);
+    } catch (err) {
+      tab?.close();
+      setState('error');
+      setMessage(err instanceof ApiError ? err.message : 'Something went wrong — try again');
+    }
+  };
+
+  return (
+    <div className="grid min-h-dvh place-items-center px-6">
+      <div className="w-full max-w-sm space-y-5">
+        <Wordmark />
+        <h1 className="display pt-6 text-2xl">Shop admin</h1>
+        <p className="text-sm text-steel">Sign in with the Telegram account the owner made an admin.</p>
+        <button
+          type="button"
+          onClick={start}
+          disabled={state === 'waiting'}
+          className="flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#2AABEE] font-semibold text-white transition-colors hover:bg-[#229ED9] disabled:opacity-70"
+        >
+          <Send className="size-5" /> {state === 'waiting' ? 'Waiting for Telegram…' : 'Sign in with Telegram'}
+        </button>
+        {state === 'waiting' && <p className="text-center text-xs text-steel">In Telegram, tap <b>Start</b> — this page signs you in by itself.</p>}
+        {state === 'error' && <p className="text-center text-sm text-danger">{message}</p>}
+        <div className="pt-4 text-center">
+          <button type="button" onClick={onPassword} className="text-sm text-steel hover:text-chalk">
+            Use a password instead
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Login() {
   const setSession = useStaff((s) => s.setSession);
   // login → forgot (phone) → reset (code from Telegram + new password)
@@ -37,6 +107,7 @@ function Login() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [withPassword, setWithPassword] = useState(false);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -71,6 +142,9 @@ function Login() {
     setCode('');
     setPassword('');
   };
+
+  // Admins sign in with Telegram; the password form is the owner's fallback
+  if (!withPassword && mode === 'login') return <TelegramStaffLogin onPassword={() => setWithPassword(true)} />;
 
   return (
     <div className="grid min-h-dvh place-items-center px-6">
@@ -259,6 +333,7 @@ function Shell() {
           >
             <LogOut className="size-4" />
           </button>
+          <AdminThemeToggle />
         </div>
       </aside>
 
@@ -266,9 +341,12 @@ function Shell() {
       <div className="sticky top-0 z-30 border-b border-seam bg-ink/95 backdrop-blur md:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <Wordmark />
-          <button onClick={signOut} className="rounded-full p-2 text-steel" aria-label="Sign out">
-            <LogOut className="size-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <AdminThemeToggle />
+            <button onClick={signOut} className="rounded-full p-2 text-steel" aria-label="Sign out">
+              <LogOut className="size-4" />
+            </button>
+          </div>
         </div>
         <nav className="no-scrollbar flex gap-1 overflow-x-auto px-3 pb-2">
           {links.map(({ to, label, end, badge }) => (
@@ -358,5 +436,15 @@ function TelegramBanner() {
         Connect
       </button>
     </div>
+  );
+}
+
+/** Light / dark for the admin too (same setting as the shop, remembered on this device). */
+function AdminThemeToggle() {
+  const { theme, toggle } = useTheme();
+  return (
+    <button onClick={toggle} className="rounded-full p-2 text-steel hover:text-chalk" aria-label={theme === 'dark' ? 'Light mode' : 'Dark mode'} title={theme === 'dark' ? 'Light mode' : 'Dark mode'}>
+      {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </button>
   );
 }
