@@ -62,6 +62,7 @@ type AllSettings = StoreSettings & {
   dailyReport: boolean;
   reportHour: number;
   bagReminders: boolean;
+  ownerCanOrder: boolean;
   autoVerifyPayments: boolean;
   paymentVerifyKeySet: boolean;
   paymentVerifyServerKey: boolean;
@@ -637,6 +638,12 @@ function TelegramTab({ data }: { data: SettingsResponse }) {
           title="Channel posts become products"
           desc={s.channelChatId ? 'Post on Telegram as usual — it appears in Products as a draft' : 'Connect your channel first'}
           right={<Switch checked={s.channelAutoImport} disabled={!s.channelChatId} onChange={(v) => patch.mutate({ channelAutoImport: v })} />}
+        />
+        <Row
+          icon={<Tile tone={s.ownerCanOrder ? 'camel' : 'steel'}><Store className="size-4" /></Tile>}
+          title="Owner can place orders"
+          desc="Allow your owner account to order as a customer — owner bot alerts stay in a separate “👔 Shop · Owner” topic"
+          right={<Switch checked={s.ownerCanOrder} onChange={(v) => patch.mutate({ ownerCanOrder: v })} />}
         />
       </Group>
 
