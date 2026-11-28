@@ -38,12 +38,24 @@ export function HeartButton({ productId, className, label }: { productId: string
 
 // ─── Exchange ────────────────────────────────────────────
 
+type ExReason = 'too_small' | 'too_big' | 'wrong_scent' | 'damaged_bottle' | 'wrong_item' | 'defect' | 'other';
+
 interface ExchangeInfo {
   canRequest: boolean;
   until: string | null;
   days: number;
   requests: { id: string; status: 'requested' | 'approved' | 'declined' | 'done'; staffNote: string | null; items: { name: string; size: string; wantSize: string | null }[] }[];
-  items: { orderItemId: string; name: string; size: string; color: string; sizes: string[]; inStock: Record<string, boolean> }[];
+  items: {
+    orderItemId: string;
+    name: string;
+    size: string;
+    color: string;
+    kind?: 'APPAREL' | 'FOOTWEAR' | 'FRAGRANCE' | 'ACCESSORY';
+    reasons?: ExReason[];
+    sizes: string[];
+    variants?: { id: string; size: string; color: string; stock: number }[];
+    inStock: Record<string, boolean>;
+  }[];
 }
 
 export function ExchangeBlock({ order }: { order: Order }) {
@@ -57,12 +69,19 @@ export function ExchangeBlock({ order }: { order: Order }) {
   });
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<Record<string, string | null>>({});
-  const [reason, setReason] = useState<'too_small' | 'too_big' | 'defect' | 'other'>('too_small');
+  const [reason, setReason] = useState<ExReason>('too_small');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const info = q.data;
   if (!received || !info) return null;
   const last = info.requests[0];
+
+  const selectedItems = info.items.filter((i) => i.orderItemId in picked);
+  const availableReasons: ExReason[] =
+    selectedItems.length > 0
+      ? [...new Set(selectedItems.flatMap((i) => i.reasons ?? (['too_small', 'too_big', 'defect', 'other'] as ExReason[])))]
+      : (info.items[0]?.reasons ?? (['too_small', 'too_big', 'defect', 'other'] as ExReason[]));
+  const activeReason = availableReasons.includes(reason) ? reason : availableReasons[0]!;
 
   const send = async () => {
     setBusy(true);
@@ -70,8 +89,8 @@ export function ExchangeBlock({ order }: { order: Order }) {
       await api('/exchanges', {
         body: {
           orderNumber: order.orderNumber,
-          items: Object.entries(picked).map(([orderItemId, wantSize]) => ({ orderItemId, wantSize })),
-          reason,
+          items: Object.entries(picked).map(([orderItemId, wantSize]) => ({ orderItemId, wantSize: activeReason === 'other' ? null : wantSize })),
+          reason: activeReason,
           note: note.trim() || undefined,
         },
       });
@@ -144,7 +163,7 @@ export function ExchangeBlock({ order }: { order: Order }) {
                   </span>
                   <span className={cn('size-5 rounded-full border-2', on ? 'border-camel bg-camel' : 'border-seam')} />
                 </button>
-                {on && i.sizes.length > 0 && (
+                {on && activeReason !== 'other' && i.sizes.length > 0 && (
                   <div className="mt-3">
                     <p className="mb-1.5 text-xs text-steel">{t('ex.want')}</p>
                     <div className="flex flex-wrap gap-1.5">
@@ -170,11 +189,11 @@ export function ExchangeBlock({ order }: { order: Order }) {
         </div>
         <p className="label mb-2 mt-6">{t('ex.reason')}</p>
         <div className="grid grid-cols-2 gap-2">
-          {(['too_small', 'too_big', 'defect', 'other'] as const).map((r) => (
+          {availableReasons.map((r) => (
             <button
               key={r}
               onClick={() => setReason(r)}
-              className={cn('h-11 rounded-xl border text-sm transition-colors', reason === r ? 'border-chalk bg-chalk text-ink' : 'border-seam text-steel')}
+              className={cn('h-11 rounded-xl border text-sm transition-colors', activeReason === r ? 'border-chalk bg-chalk text-ink' : 'border-seam text-steel')}
             >
               {t(`ex.${r}`)}
             </button>
