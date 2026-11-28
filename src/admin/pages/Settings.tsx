@@ -68,6 +68,10 @@ type AllSettings = StoreSettings & {
   paymentVerifyServerKey: boolean;
   autoVerifyMethods: string[];
   exchangeDays: number;
+  exchangeFeeType: 'free' | 'fixed' | 'percent';
+  exchangeFeeValue: number;
+  damageFeeType: 'fixed' | 'percent';
+  damageFeeValue: number;
 };
 interface SettingsResponse {
   settings: AllSettings;
@@ -730,6 +734,56 @@ function ShopTab({ data }: { data: SettingsResponse }) {
                 {d === 0 ? 'Off' : `${d} days`}
               </button>
             ))}
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-seam/80 bg-wool px-4 py-3">
+          <div>
+            <p className="text-sm">Exchange delivery fee</p>
+            <p className="text-xs text-steel">Charged on size/preference exchanges (defects are free by default; overridable per order)</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(['free', 'fixed', 'percent'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => patch.mutate({ exchangeFeeType: t, ...(t === 'free' ? { exchangeFeeValue: 0 } : {}) } as Partial<AllSettings>)}
+                className={cn('h-8 rounded-full px-3 text-xs transition-colors', data.settings.exchangeFeeType === t ? 'bg-chalk text-ink' : 'text-steel hover:text-chalk')}
+              >
+                {t === 'free' ? 'Free' : t === 'fixed' ? 'Fixed ETB' : '% of order'}
+              </button>
+            ))}
+            {data.settings.exchangeFeeType !== 'free' && (
+              <input
+                type="number"
+                min={0}
+                defaultValue={data.settings.exchangeFeeValue}
+                onBlur={(e) => patch.mutate({ exchangeFeeValue: Math.max(0, Number(e.target.value) || 0) } as Partial<AllSettings>)}
+                className="h-8 w-24 rounded-lg border border-seam bg-ink/40 px-2.5 font-mono text-sm focus:border-camel focus:outline-none"
+              />
+            )}
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-seam/80 bg-wool px-4 py-3">
+          <div>
+            <p className="text-sm">Trusted driver damage rate</p>
+            <p className="text-xs text-steel">Shown to trusted drivers when a returned item is damaged</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(['fixed', 'percent'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => patch.mutate({ damageFeeType: t } as Partial<AllSettings>)}
+                className={cn('h-8 rounded-full px-3 text-xs transition-colors', data.settings.damageFeeType === t ? 'bg-chalk text-ink' : 'text-steel hover:text-chalk')}
+              >
+                {t === 'fixed' ? 'Fixed ETB' : '% of order'}
+              </button>
+            ))}
+            <input
+              type="number"
+              min={0}
+              defaultValue={data.settings.damageFeeValue}
+              onBlur={(e) => patch.mutate({ damageFeeValue: Math.max(0, Number(e.target.value) || 0) } as Partial<AllSettings>)}
+              className="h-8 w-24 rounded-lg border border-seam bg-ink/40 px-2.5 font-mono text-sm focus:border-camel focus:outline-none"
+            />
           </div>
         </div>
       </section>

@@ -19,6 +19,7 @@ export interface DriverRow {
   linked: boolean;
   linkCode: string | null;
   isOnline: boolean;
+  canPriceDamage?: boolean;
   busy: boolean;
   /** the order keeping the driver busy */
   busyWith?: { id: string; orderNumber: string } | null;
@@ -110,7 +111,7 @@ export function DriversSection({ botUsername }: { botUsername: string }) {
     onError: (e) => toast.error(errMsg(e)),
   });
   const patch = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { isActive?: boolean; newCode?: boolean } }) => adminApi(`/drivers/${id}`, { method: 'PATCH', body }),
+    mutationFn: ({ id, body }: { id: string; body: { isActive?: boolean; newCode?: boolean; canPriceDamage?: boolean } }) => adminApi(`/drivers/${id}`, { method: 'PATCH', body }),
     onSuccess: refresh,
   });
 
@@ -223,6 +224,15 @@ export function DriversSection({ botUsername }: { botUsername: string }) {
                   {d.linked && (
                     <button onClick={() => patch.mutate({ id: d.id, body: { newCode: true } })} className="rounded-full px-3 py-1.5 hover:bg-ink/40 hover:text-chalk" title="New phone? Send a fresh invite">
                       Reconnect
+                    </button>
+                  )}
+                  {isOwner && (
+                    <button
+                      onClick={() => patch.mutate({ id: d.id, body: { canPriceDamage: !d.canPriceDamage } })}
+                      className={cn('rounded-full px-3 py-1.5 hover:bg-ink/40', d.canPriceDamage ? 'text-camel' : 'hover:text-chalk')}
+                      title="Allow this driver to set damage fees at the door using your shop rate"
+                    >
+                      {d.canPriceDamage ? 'Damage fee ✓' : 'Damage fee off'}
                     </button>
                   )}
                   <button onClick={() => patch.mutate({ id: d.id, body: { isActive: !d.isActive } })} className="rounded-full px-3 py-1.5 hover:bg-ink/40 hover:text-chalk">
