@@ -265,6 +265,12 @@ export default function OrderDetail() {
 
           <DriverCard order={order} onChange={(o) => onDone(o, 'Saved')} />
 
+          <div className="flex justify-end">
+            <Link to="/admin/care?tab=exchanges" className="text-xs text-steel underline underline-offset-2 hover:text-camel">
+              Customer care → Exchanges
+            </Link>
+          </div>
+
           {order.refund && <RefundCard order={order} onDone={(o) => onDone(o, 'Marked refunded')} />}
 
           {open && order.cancelAt && (

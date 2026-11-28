@@ -67,6 +67,7 @@ function ExchangeCard({ e }: { e: Ex }) {
     return init;
   });
   const [fee, setFee] = useState<string>(String(e.deliveryFee ?? e.defaultDeliveryFee ?? 0));
+  const [pickupAtShop, setPickupAtShop] = useState(false);
   const [damageAmt, setDamageAmt] = useState<string>(String(e.damageFee || ''));
 
   const refresh = () => {
@@ -89,11 +90,12 @@ function ExchangeCard({ e }: { e: Ex }) {
       adminApi<{ replacementOrderId: string; replacementOrderNumber: string }>(`/exchanges/${e.id}/prepare`, {
         body: {
           items: e.items.map((it) => ({ orderItemId: it.orderItemId, variantId: picks[it.orderItemId] ?? '' })).filter((x) => x.variantId),
-          deliveryFee: Math.max(0, Number(fee) || 0),
+          deliveryFee: pickupAtShop ? 0 : Math.max(0, Number(fee) || 0),
+          pickupAtShop,
         },
       }),
     onSuccess: (r) => {
-      toast.ok(`Replacement ${r.replacementOrderNumber} created — ready for driver dispatch`);
+      toast.ok(pickupAtShop ? `Prepared ${r.replacementOrderNumber} for shop pickup` : `Replacement ${r.replacementOrderNumber} created — ready for driver dispatch`);
       refresh();
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'Failed'),
@@ -137,7 +139,7 @@ function ExchangeCard({ e }: { e: Ex }) {
           </Link>
           {e.replacementOrderId && (
             <Link to={`/admin/orders/${e.replacementOrderId}`} className="inline-flex items-center gap-1 rounded-full bg-camel/15 px-2.5 py-0.5 text-xs text-camel hover:bg-camel/25">
-              <Truck className="size-3" /> Replacement order
+              <Truck className="size-3" /> Dispatch driver →
             </Link>
           )}
         </div>
@@ -157,7 +159,7 @@ function ExchangeCard({ e }: { e: Ex }) {
                 </>
               )}
             </div>
-            {e.status === 'requested' && e.reason !== 'other' && i.choices && i.choices.length > 0 && (
+            {!e.replacementOrderId && e.status !== 'declined' && e.status !== 'done' && i.choices && i.choices.length > 0 && (
               <div className="pl-5">
                 <Dropdown
                   value={picks[i.orderItemId] ?? ''}
@@ -182,20 +184,30 @@ function ExchangeCard({ e }: { e: Ex }) {
       </p>
       {e.staffNote && <p className="mt-1 text-xs text-chalk/70">You: {e.staffNote}</p>}
 
-      {e.status === 'requested' && e.reason !== 'other' && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-seam/70 bg-ink/30 p-3">
-          <label className="text-xs text-steel">
-            Exchange delivery fee (ETB):
-            <input
-              type="number"
-              min={0}
-              value={fee}
-              onChange={(ev) => setFee(ev.target.value)}
-              className="ml-2 h-8 w-24 rounded-lg border border-seam bg-wool px-2 font-mono text-sm text-chalk focus:border-camel focus:outline-none"
-            />
-          </label>
+      {!e.replacementOrderId && e.status !== 'declined' && e.status !== 'done' && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-seam/70 bg-ink/30 p-3">
+          <div className="flex rounded-full border border-seam p-0.5 text-xs">
+            <button onClick={() => setPickupAtShop(false)} className={cn('h-7 rounded-full px-2.5', !pickupAtShop ? 'bg-chalk text-ink' : 'text-steel')}>
+              Driver delivery
+            </button>
+            <button onClick={() => setPickupAtShop(true)} className={cn('h-7 rounded-full px-2.5', pickupAtShop ? 'bg-chalk text-ink' : 'text-steel')}>
+              Shop pickup (G2)
+            </button>
+          </div>
+          {!pickupAtShop && (
+            <label className="text-xs text-steel">
+              Fee (ETB):
+              <input
+                type="number"
+                min={0}
+                value={fee}
+                onChange={(ev) => setFee(ev.target.value)}
+                className="ml-2 h-8 w-20 rounded-lg border border-seam bg-wool px-2 font-mono text-sm text-chalk focus:border-camel focus:outline-none"
+              />
+            </label>
+          )}
           <Button size="sm" variant="accent" disabled={!allPicked} loading={prepare.isPending} onClick={() => prepare.mutate()} className="ml-auto">
-            <Check className="size-4" /> Prepare exchange delivery
+            <Check className="size-4" /> {pickupAtShop ? 'Prepare for pickup' : 'Prepare exchange delivery'}
           </Button>
         </div>
       )}
