@@ -202,8 +202,8 @@ export default function Checkout() {
       });
       if (place) {
         setPlaceLabel(place.label);
-        if (place.area) setArea((a) => a || place.area!);
-        if (place.landmark) setLandmark((l) => l || place.landmark!);
+        if (place.area) setArea(place.area);
+        if (place.landmark) setLandmark(place.landmark);
       }
     } catch {
       /* coordinates are still saved with the order */

@@ -174,7 +174,7 @@ function freshGps(): Promise<LocationResult> {
           if (err.code === err.PERMISSION_DENIED) finish({ ok: false, reason: 'denied' });
           else if (!best && err.code !== err.TIMEOUT) finish({ ok: false, reason: 'unavailable' });
         },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: HARD_TIMEOUT_MS },
+        { enableHighAccuracy: true, maximumAge: 30_000, timeout: HARD_TIMEOUT_MS },
       );
     } catch {
       finish({ ok: false, reason: 'unavailable' });
@@ -184,7 +184,7 @@ function freshGps(): Promise<LocationResult> {
 
 /**
  * Second try from the same (already allowed) browser location: network / Wi-Fi position, may reuse a
- * reading up to 2 minutes old. Used when the GPS couldn't get a satellite fix in time (indoors).
+ * reading up to 5 minutes old. Used when the GPS couldn't get a satellite fix in time (indoors).
  * No new permission prompt — the browser permission is the same one.
  */
 function quickGps(): Promise<LocationResult> {
@@ -201,7 +201,7 @@ function quickGps(): Promise<LocationResult> {
             source: 'gps',
           }),
         (err) => resolve({ ok: false, reason: err.code === err.PERMISSION_DENIED ? 'denied' : 'unavailable' }),
-        { enableHighAccuracy: false, maximumAge: 120_000, timeout: 10_000 },
+        { enableHighAccuracy: false, maximumAge: 300_000, timeout: 10_000 },
       );
     } catch {
       resolve({ ok: false, reason: 'unavailable' });
