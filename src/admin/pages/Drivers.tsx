@@ -44,7 +44,11 @@ export function driverStatus(d: DriverRow) {
 }
 
 const errMsg = (err: unknown) => (err instanceof ApiError ? err.message : 'Failed');
-export const useDrivers = () => useQuery({ queryKey: ['admin', 'drivers'], queryFn: () => adminApi<{ drivers: DriverRow[] }>('/drivers').then((r) => r.drivers) });
+export const useDrivers = (orderId?: string) =>
+  useQuery({
+    queryKey: ['admin', 'drivers', orderId ?? 'all'],
+    queryFn: () => adminApi<{ drivers: DriverRow[] }>('/drivers', orderId ? { query: { orderId } } : undefined).then((r) => r.drivers),
+  });
 
 /** Owner: which delivery people / admins have a verified Fayda ID (for the ✓ badges). */
 export const useIdentitySummary = (enabled: boolean) =>
@@ -292,7 +296,7 @@ function Countdown({ until }: { until: string }) {
 /** Order page: offer the job → driver accepts → hand over → on the way (→ code at the door). */
 export function DriverCard({ order, onChange }: { order: Order; onChange: (o: Order) => void }) {
   const qc = useQueryClient();
-  const drivers = useDrivers();
+  const drivers = useDrivers(order.id);
   const state = useQuery({
     queryKey: ['admin', 'dispatch', order.id],
     queryFn: () => adminApi<DispatchState>(`/orders/${order.id}/dispatch`),
